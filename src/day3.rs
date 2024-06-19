@@ -93,7 +93,6 @@ pub fn day3() -> (usize, usize) {
 
     let wire1 = parse_wire(&wires[0]);
     let wire2 = parse_wire(&wires[1]);
-    println!("lengths: 1: {}, 2: {}", wire1.len(), wire2.len());
 
     // Going to do two different algorithms here:
     // 1. Iterate through the path descriptions in wire 1 and map to line segments

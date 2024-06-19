@@ -3,9 +3,9 @@ use crate::utils;
 
 ///Day 2 solution
 pub fn day2() -> (usize, usize) {
-    let initial_state: Vec<usize> = utils::parse_input_by_sep("input/day2.txt", ',');
+    let initial_state: Vec<i32> = utils::parse_input_by_sep("input/day2.txt", ',');
     let mut program = intcode::Program::new(&initial_state);
-    program.set_inputs(12, 2);
+    program.set_noun_verb_inputs(12, 2);
     program.run();
     let part1 = program.output();
     let mut noun = 0;
@@ -15,7 +15,7 @@ pub fn day2() -> (usize, usize) {
     'outer: for ii in 0..100 {
         for jj in 0..100 {
             program.initialize(&initial_state);
-            program.set_inputs(ii, jj);
+            program.set_noun_verb_inputs(ii, jj);
             program.run();
             let output = program.output();
             if output == 19690720 {
@@ -26,7 +26,7 @@ pub fn day2() -> (usize, usize) {
         }
     }
 
-    (part1, 100 * noun + verb)
+    (part1 as usize, (100 * noun + verb) as usize)
 }
 
 #[cfg(test)]
