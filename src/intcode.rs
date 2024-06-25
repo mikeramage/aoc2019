@@ -74,10 +74,10 @@ struct Parameter {
 }
 
 impl Parameter {
-    fn new(mode_val: (&Mode, &i32)) -> Parameter {
+    fn new(parameter: (&Mode, &i32)) -> Parameter {
         Parameter {
-            mode: *mode_val.0,
-            value: *mode_val.1,
+            mode: *parameter.0,
+            value: *parameter.1,
         }
     }
 
@@ -100,21 +100,22 @@ impl Instruction {
     //of the instruction (the number of parameters to extract depends on the op code which is
     //encapsulated in the Instruction struct/impl).
     pub fn new(program_fragment: &[i32], input: i32) -> Instruction {
+        use OpCode::*;
         let op_code = OpCode::try_from(program_fragment[0]).unwrap();
         let parameters: Vec<Parameter> = match op_code {
-            OpCode::Input | OpCode::Output => {
+            Input | Output => {
                 //Input and output take a single parameter
                 extract_parameters(program_fragment, 1)
             }
-            OpCode::JumpIfTrue | OpCode::JumpIfFalse => {
+            JumpIfTrue | JumpIfFalse => {
                 //Jump take 2 parameters
                 extract_parameters(program_fragment, 2)
             }
-            OpCode::Add | OpCode::Multiply | OpCode::LessThan | OpCode::Equals => {
+            Add | Multiply | LessThan | Equals => {
                 //Add and multiply, less than, equals currently take 3 parameters
                 extract_parameters(program_fragment, 3)
             }
-            OpCode::Halt => {
+            Halt => {
                 //Halt takes no parameters
                 vec![]
             }
@@ -128,16 +129,17 @@ impl Instruction {
 
     // Operate performs the relevant operation on operands and returns Ok or Halt
     pub fn execute(&mut self, program: &mut [i32]) -> InstructionResult {
+        use OpCode::*;
         match self.op_code {
-            OpCode::Add => self.do_op(program, OpCode::Add),
-            OpCode::Multiply => self.do_op(program, OpCode::Multiply),
-            OpCode::Input => self.do_input(program),
-            OpCode::Output => self.do_output(program),
-            OpCode::JumpIfTrue => self.do_jump(program, true),
-            OpCode::JumpIfFalse => self.do_jump(program, false),
-            OpCode::LessThan => self.do_comparison(program, OpCode::LessThan),
-            OpCode::Equals => self.do_comparison(program, OpCode::Equals),
-            OpCode::Halt => InstructionResult::Halt,
+            Add => self.do_op(program, Add),
+            Multiply => self.do_op(program, Multiply),
+            Input => self.do_input(program),
+            Output => self.do_output(program),
+            JumpIfTrue => self.do_jump(program, true),
+            JumpIfFalse => self.do_jump(program, false),
+            LessThan => self.do_comparison(program, LessThan),
+            Equals => self.do_comparison(program, Equals),
+            Halt => InstructionResult::Halt,
         }
     }
 
@@ -153,7 +155,7 @@ impl Instruction {
 
     fn do_op(&mut self, program: &mut [i32], op: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
-        let operands = self.parameters[0..2]
+        let operands = self.parameters[0..(self.parameters.len() - 1)]
             .iter()
             .map(|x| x.get_effective_value(program));
         program[output_location as usize] = match op {
