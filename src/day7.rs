@@ -93,50 +93,6 @@ fn do_feedback_loop(phases: &[i32], program: &intcode::Program) -> i32 {
         phases[4],
     ));
 
-    // let (sender_0, receiver_0) = mpsc::channel();
-    // let (sender_1, receiver_1) = mpsc::channel();
-    // let (sender_2, receiver_2) = mpsc::channel();
-    // let (sender_3, receiver_3) = mpsc::channel();
-    // let (sender_4, receiver_4) = mpsc::channel();
-
-    // let sender_main = sender_4.clone();
-
-    // amplifiers.push(Amplifier::new(
-    //     0,
-    //     program.clone(),
-    //     sender_0,
-    //     receiver_4,
-    //     phases[0],
-    // ));
-    // amplifiers.push(Amplifier::new(
-    //     1,
-    //     program.clone(),
-    //     sender_1,
-    //     receiver_0,
-    //     phases[1],
-    // ));
-    // amplifiers.push(Amplifier::new(
-    //     2,
-    //     program.clone(),
-    //     sender_2,
-    //     receiver_1,
-    //     phases[2],
-    // ));
-    // amplifiers.push(Amplifier::new(
-    //     3,
-    //     program.clone(),
-    //     sender_3,
-    //     receiver_2,
-    //     phases[3],
-    // ));
-    // amplifiers.push(Amplifier::new(
-    //     4,
-    //     program.clone(),
-    //     sender_4,
-    //     receiver_3,
-    //     phases[4],
-    // ));
-
     let mut amplifier_thread_handles = vec![];
 
     for mut amplifier in amplifiers {
@@ -155,6 +111,7 @@ fn do_feedback_loop(phases: &[i32], program: &intcode::Program) -> i32 {
                             //assume the other end of the channel is broken because everything
                             //halted and it's a success.
                         } else {
+                            //If this happened halfway through, there's a problem!
                             panic!("Error sending to next amplifier: {err}")
                         }
                     }
