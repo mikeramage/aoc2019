@@ -29,7 +29,7 @@ pub fn day6() -> (usize, usize) {
 fn parse_orbits(orbits: &[String]) -> Vec<Vec<String>> {
     orbits
         .iter()
-        .map(|x| x.split(')').map(|s| String::from(s)).collect())
+        .map(|x| x.split(')').map(String::from).collect())
         .collect()
 }
 
@@ -166,9 +166,7 @@ fn count_orbits(object_map: &HashMap<String, Object>) -> (usize, usize) {
 //     Ok(transfer_counter - 1) // Adjust for inclusive start and end
 // }
 
-fn num_transfers(
-    object_map: &HashMap<String, Object>,
-) -> Result<i32, &'static str> {
+fn num_transfers(object_map: &HashMap<String, Object>) -> Result<i32, &'static str> {
     let origin = object_map.get("YOU").ok_or("Origin not found")?;
     let mut explored = HashSet::new();
     explored.insert("YOU");

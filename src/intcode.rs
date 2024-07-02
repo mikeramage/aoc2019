@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Program {
     program: Vec<i32>,
     instruction_pointer: usize,
@@ -15,23 +16,25 @@ impl Program {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> ProgramResult {
+        let mut result = ProgramResult::Halted;
         loop {
             let mut instruction =
                 Instruction::new(&self.program[self.instruction_pointer..], &mut self.inputs);
             match instruction.execute(&mut self.program) {
                 InstructionResult::OkIncrement(increment) => {
                     self.instruction_pointer += increment;
-                    continue;
                 }
                 InstructionResult::OutputIncrement(output, increment) => {
                     self.outputs.push(output);
                     self.instruction_pointer += increment;
-                    continue;
                 }
                 InstructionResult::OkSet(address) => {
                     self.instruction_pointer = address;
-                    continue;
+                }
+                InstructionResult::AwaitInput => {
+                    result = ProgramResult::AwaitingInput;
+                    break;
                 }
                 InstructionResult::Halt => {
                     self.instruction_pointer += 1;
@@ -39,6 +42,8 @@ impl Program {
                 }
             };
         }
+
+        result
     }
 
     pub fn set_noun_verb_inputs(&mut self, noun: i32, verb: i32) {
@@ -48,7 +53,7 @@ impl Program {
     }
 
     pub fn add_input(&mut self, input: i32) {
-        self.inputs.push(input);
+        self.inputs.insert(0, input);
     }
 
     pub fn set_inputs(&mut self, inputs: Vec<i32>) {
@@ -68,11 +73,17 @@ impl Program {
     }
 
     pub fn initialize(&mut self, initial_values: &[i32]) {
-        self.program = initial_values.to_owned();
+        initial_values.clone_into(&mut self.program);
         self.instruction_pointer = 0;
         self.inputs = vec![];
         self.outputs = vec![];
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ProgramResult {
+    AwaitingInput,
+    Halted,
 }
 
 struct Instruction {
@@ -88,13 +99,18 @@ impl Instruction {
     pub fn new(program_fragment: &[i32], inputs: &mut Vec<i32>) -> Instruction {
         use OpCode::*;
         let op_code = OpCode::try_from(program_fragment[0]).unwrap();
-        let parameters: Vec<Parameter> = Instruction::extract_parameters(program_fragment, &op_code);
+        let parameters: Vec<Parameter> =
+            Instruction::extract_parameters(program_fragment, &op_code);
 
-        let input = if let Input = op_code {
-            Some(inputs.pop().expect("Expected sufficient inputs!"))
-        }
-        else {
-            None
+        let input = match op_code {
+            Input => {
+                if !inputs.is_empty() {
+                    Some(inputs.pop().expect("Expected sufficient inputs!"))
+                } else {
+                    None
+                }
+            }
+            _ => None,
         };
 
         Instruction {
@@ -115,9 +131,8 @@ impl Instruction {
         };
 
         if let Halt = op_code {
-            return vec![]
-        }
-        else {
+            vec![]
+        } else {
             std::iter::repeat_with({
                 let mut mode_digits = program_fragment[0] / 100;
                 move || {
@@ -167,8 +182,13 @@ impl Instruction {
 
     fn do_input(&mut self, program: &mut [i32]) -> InstructionResult {
         let output_location = self.parameters[0].value;
-        program[output_location as usize] = self.input.unwrap();
-        InstructionResult::OkIncrement(self.parameters.len() + 1)
+        match self.input {
+            Some(x) => {
+                program[output_location as usize] = x;
+                InstructionResult::OkIncrement(self.parameters.len() + 1)
+            }
+            None => InstructionResult::AwaitInput,
+        }
     }
 
     fn do_output(&mut self, program: &mut [i32]) -> InstructionResult {
@@ -254,6 +274,7 @@ pub enum InstructionResult {
     OkIncrement(usize), //Contains the increment to the instruction pointer
     OkSet(usize),       //Contains absolute value for instruction pointer
     OutputIncrement(i32, usize),
+    AwaitInput,
     Halt,
 }
 
