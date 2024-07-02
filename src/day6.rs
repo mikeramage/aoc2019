@@ -22,7 +22,7 @@ pub fn day6() -> (usize, usize) {
     let (direct_orbits, indirect_orbits) = count_orbits(&orbit_map);
 
     // let num_transfers = num_transfers(&orbit_map);
-    let num_transfers = num_transfers_further_improved(&orbit_map).expect("Aargh");
+    let num_transfers = num_transfers(&orbit_map).expect("Aargh");
     (direct_orbits + indirect_orbits, num_transfers as usize)
 }
 
@@ -78,95 +78,95 @@ fn count_orbits(object_map: &HashMap<String, Object>) -> (usize, usize) {
     (direct_orbits, indirect_orbits)
 }
 
-fn num_transfers(object_map: &HashMap<String, Object>) -> i32 {
-    let origin = object_map.get("YOU").unwrap();
-    let mut explored = HashSet::<String>::new();
-    explored.insert("YOU".to_string());
-    let mut active: Vec<String> = origin.orbited_by.clone();
-    active.push(origin.orbits.clone().unwrap());
-    let target = "SAN";
-    let mut transfer_counter = 0;
-    'outer: loop {
-        //Forever - we're gonna find it!
-        //First check the active set for the target. If we find it we're done.
-        for object_name in &active {
-            if object_name == target {
-                break 'outer;
-            }
-            //Now add the active set to the explored set.
-            explored.insert(object_name.clone());
-        }
+// fn num_transfers_older(object_map: &HashMap<String, Object>) -> i32 {
+//     let origin = object_map.get("YOU").unwrap();
+//     let mut explored = HashSet::<String>::new();
+//     explored.insert("YOU".to_string());
+//     let mut active: Vec<String> = origin.orbited_by.clone();
+//     active.push(origin.orbits.clone().unwrap());
+//     let target = "SAN";
+//     let mut transfer_counter = 0;
+//     'outer: loop {
+//         //Forever - we're gonna find it!
+//         //First check the active set for the target. If we find it we're done.
+//         for object_name in &active {
+//             if object_name == target {
+//                 break 'outer;
+//             }
+//             //Now add the active set to the explored set.
+//             explored.insert(object_name.clone());
+//         }
 
-        let mut new_active: Vec<String> = vec![];
+//         let mut new_active: Vec<String> = vec![];
 
-        for object_name in &active {
-            let object = object_map.get(object_name.as_str()).unwrap();
-            for orbiter in &object.orbited_by {
-                if !explored.contains(orbiter.as_str()) {
-                    new_active.push(orbiter.to_string());
-                }
-            }
+//         for object_name in &active {
+//             let object = object_map.get(object_name.as_str()).unwrap();
+//             for orbiter in &object.orbited_by {
+//                 if !explored.contains(orbiter.as_str()) {
+//                     new_active.push(orbiter.to_string());
+//                 }
+//             }
 
-            let orbits = object.orbits.clone();
-            if let Some(orbitee) = orbits {
-                if !explored.contains(orbitee.as_str()) {
-                    new_active.push(orbitee)
-                }
-            }
-        }
+//             let orbits = object.orbits.clone();
+//             if let Some(orbitee) = orbits {
+//                 if !explored.contains(orbitee.as_str()) {
+//                     new_active.push(orbitee)
+//                 }
+//             }
+//         }
 
-        active = new_active;
-        transfer_counter += 1;
-    }
+//         active = new_active;
+//         transfer_counter += 1;
+//     }
 
-    transfer_counter - 1 //orbital transfers are not inclusive of start and end so the above algorithm will overcount by 1
-}
+//     transfer_counter - 1 //orbital transfers are not inclusive of start and end so the above algorithm will overcount by 1
+// }
 
-fn num_transfers_improved(object_map: &HashMap<String, Object>) -> Result<i32, &'static str> {
-    let origin = object_map.get("YOU").ok_or("Origin not found")?;
-    let mut explored = HashSet::new();
-    explored.insert("YOU".to_string());
-    let mut active: Vec<String> = origin.orbited_by.iter().cloned().collect();
-    if let Some(orbit) = &origin.orbits {
-        active.push(orbit.clone());
-    }
-    let target = "SAN";
-    let mut transfer_counter = 0;
+// fn num_transfers_old(object_map: &HashMap<String, Object>) -> Result<i32, &'static str> {
+//     let origin = object_map.get("YOU").ok_or("Origin not found")?;
+//     let mut explored = HashSet::new();
+//     explored.insert("YOU".to_string());
+//     let mut active: Vec<String> = origin.orbited_by.iter().cloned().collect();
+//     if let Some(orbit) = &origin.orbits {
+//         active.push(orbit.clone());
+//     }
+//     let target = "SAN";
+//     let mut transfer_counter = 0;
 
-    while !active.contains(&target.to_string()) {
-        let mut new_active = Vec::new();
+//     while !active.contains(&target.to_string()) {
+//         let mut new_active = Vec::new();
 
-        for object_name in &active {
-            if let Some(object) = object_map.get(object_name) {
-                new_active.extend(
-                    object
-                        .orbited_by
-                        .iter()
-                        .filter(|orbiter| !explored.contains(*orbiter))
-                        .cloned(),
-                );
+//         for object_name in &active {
+//             if let Some(object) = object_map.get(object_name) {
+//                 new_active.extend(
+//                     object
+//                         .orbited_by
+//                         .iter()
+//                         .filter(|orbiter| !explored.contains(*orbiter))
+//                         .cloned(),
+//                 );
 
-                if let Some(orbitee) = &object.orbits {
-                    if !explored.contains(orbitee) {
-                        new_active.push(orbitee.clone());
-                    }
-                }
-            }
-            explored.insert(object_name.clone());
-        }
+//                 if let Some(orbitee) = &object.orbits {
+//                     if !explored.contains(orbitee) {
+//                         new_active.push(orbitee.clone());
+//                     }
+//                 }
+//             }
+//             explored.insert(object_name.clone());
+//         }
 
-        if new_active.is_empty() {
-            return Err("Path to target not found");
-        }
+//         if new_active.is_empty() {
+//             return Err("Path to target not found");
+//         }
 
-        active = new_active;
-        transfer_counter += 1;
-    }
+//         active = new_active;
+//         transfer_counter += 1;
+//     }
 
-    Ok(transfer_counter - 1) // Adjust for inclusive start and end
-}
+//     Ok(transfer_counter - 1) // Adjust for inclusive start and end
+// }
 
-fn num_transfers_further_improved(
+fn num_transfers(
     object_map: &HashMap<String, Object>,
 ) -> Result<i32, &'static str> {
     let origin = object_map.get("YOU").ok_or("Origin not found")?;
@@ -259,6 +259,5 @@ I)SAN"
         .collect();
     let orbits = parse_orbits(&orbit_string);
     let orbit_map = build_orbit_map(&orbits);
-    assert_eq!(4, num_transfers(&orbit_map));
-    assert_eq!(Ok(4), num_transfers_improved(&orbit_map));
+    assert_eq!(Ok(4), num_transfers(&orbit_map));
 }
