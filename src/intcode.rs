@@ -37,6 +37,10 @@ impl Program {
                 InstructionResult::OkSet(address) => {
                     self.instruction_pointer = address;
                 }
+                InstructionResult::OkRelativeBaseIncrement(base_increment, pointer_increment) => {
+                    self.relative_base += base_increment;
+                    self.instruction_pointer += pointer_increment; 
+                } 
                 InstructionResult::AwaitInput => {
                     result = ProgramResult::AwaitingInput;
                     break;
@@ -55,6 +59,11 @@ impl Program {
         // Happy for this to panic - indices 1 and 2 should always be present
         self.program[1] = noun;
         self.program[2] = verb;
+    }
+
+    pub fn extend_memory(&mut self, num_bytes: usize) {
+        let mut memory_extension: Vec<isize> = vec![0; num_bytes];
+        self.program.append(&mut memory_extension);
     }
 
     pub fn add_input(&mut self, input: isize) {
@@ -136,7 +145,7 @@ impl Instruction {
         use OpCode::*;
 
         let num_parameters = match op_code {
-            Input | Output => 1,
+            Input | Output | RelativeBaseOffset => 1,
             JumpIfTrue | JumpIfFalse => 2,
             Add | Multiply | LessThan | Equals => 3,
             Halt => 0,
@@ -172,6 +181,7 @@ impl Instruction {
             JumpIfFalse => self.do_jump(program, false),
             LessThan => self.do_comparison(program, LessThan),
             Equals => self.do_comparison(program, Equals),
+            RelativeBaseOffset => self.do_relative_base(program),
             Halt => InstructionResult::Halt,
         }
     }
@@ -180,7 +190,7 @@ impl Instruction {
         let output_location = self.parameters.last().unwrap().value;
         let operands = self.parameters[0..(self.parameters.len() - 1)]
             .iter()
-            .map(|x| x.get_effective_value(program));
+            .map(|x| x.get_effective_value(program, self.relative_base));
         program[output_location as usize] = match op {
             OpCode::Add => operands.sum(),
             OpCode::Multiply => operands.product(),
@@ -193,7 +203,10 @@ impl Instruction {
     }
 
     fn do_input(&mut self, program: &mut [isize]) -> InstructionResult {
-        let output_location = self.parameters[0].value;
+        let mut output_location = self.parameters[0].value;
+        if let Mode::Relative = self.parameters[0].mode{
+            output_location += self.relative_base;
+        }
         match self.input {
             Some(x) => {
                 program[output_location as usize] = x;
@@ -204,15 +217,20 @@ impl Instruction {
     }
 
     fn do_output(&mut self, program: &mut [isize]) -> InstructionResult {
-        let value = self.parameters[0].get_effective_value(program);
+        let value = self.parameters[0].get_effective_value(program, self.relative_base);
         InstructionResult::OutputIncrement(value, self.parameters.len() + 1)
     }
 
+    fn do_relative_base(&mut self, program: &mut [isize]) -> InstructionResult {
+        let value = self.parameters[0].get_effective_value(program, self.relative_base);
+        InstructionResult::OkRelativeBaseIncrement(value, self.parameters.len() + 1)
+    }
+
     fn do_jump(&mut self, program: &mut [isize], jump_if_true: bool) -> InstructionResult {
-        let do_jump = self.parameters[0].get_effective_value(program);
+        let do_jump = self.parameters[0].get_effective_value(program, self.relative_base);
 
         if (jump_if_true && do_jump != 0) || (!jump_if_true && do_jump == 0) {
-            let jump_to = self.parameters[1].get_effective_value(program);
+            let jump_to = self.parameters[1].get_effective_value(program, self.relative_base);
             return InstructionResult::OkSet(jump_to as usize);
         }
 
@@ -221,8 +239,8 @@ impl Instruction {
 
     fn do_comparison(&mut self, program: &mut [isize], op_code: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
-        let first = self.parameters[0].get_effective_value(program);
-        let second = self.parameters[1].get_effective_value(program);
+        let first = self.parameters[0].get_effective_value(program, self.relative_base);
+        let second = self.parameters[1].get_effective_value(program, self.relative_base);
 
         match op_code {
             OpCode::LessThan => {
@@ -256,6 +274,7 @@ enum OpCode {
     JumpIfFalse,
     LessThan,
     Equals,
+    RelativeBaseOffset,
     Halt,
 }
 
@@ -276,6 +295,7 @@ impl TryFrom<isize> for OpCode {
             6 => Ok(JumpIfFalse),
             7 => Ok(LessThan),
             8 => Ok(Equals),
+            9 => Ok(RelativeBaseOffset),
             99 => Ok(Halt),
             _ => Err(format!("Invalid OpCode '{}'", x)),
         }
@@ -287,6 +307,7 @@ pub enum InstructionResult {
     OkSet(usize),       //Contains absolute value for instruction pointer
     OutputIncrement(isize, usize),
     AwaitInput,
+    OkRelativeBaseIncrement(isize, usize),
     Halt,
 }
 
@@ -325,10 +346,11 @@ impl Parameter {
         }
     }
 
-    fn get_effective_value(&self, program: &[isize]) -> isize {
+    fn get_effective_value(&self, program: &[isize], relative_base: isize) -> isize {
         match self.mode {
             Mode::Position => program[self.value as usize],
             Mode::Immediate => self.value,
+            Mode::Relative => program[(self.value + relative_base) as usize]
         }
     }
 }

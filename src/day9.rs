@@ -5,8 +5,13 @@ use crate::utils;
 pub fn day9() -> (usize, usize) {
     let initial_state: Vec<isize> = utils::parse_input_by_sep("input/day9.txt", ',');
     let mut program = intcode::Program::new(&initial_state);
+    program.extend_memory(1_000_000);
+    program.add_input(1);
+    program.run();
+    println!("Outputs: {:?}", program.outputs());
+    let part1 = *program.outputs().last().unwrap();
 
-    (0, 0)
+    (part1 as usize, 0)
 }
 
 #[cfg(test)]
@@ -14,14 +19,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_input_by_sep() {
-        assert_eq!(
-            vec!(2, 3, 4, 5, 6),
-            utils::parse_input_by_sep("input/day2_test1.txt", ',')
-        );
-        assert_eq!(
-            vec!("bob", "charlie", "daniela", "edward", "fiona", "gary", "helen", "ian", "jane"),
-            utils::parse_input_by_sep::<String>("input/day2_test2.txt", '-')
-        );
+    fn test_day9() {
+        let mut program = intcode::Program::new(&vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]);
+        program.extend_memory(1_000_000);
+        program.run();
+        assert_eq!(vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99], *program.outputs());
+
+        program = intcode::Program::new(&vec![1102,34915192,34915192,7,4,7,99,0]);
+        program.extend_memory(1_000_000);
+        program.run();
+        assert_eq!(16, program.outputs().last().unwrap().to_string().len());
+
+        program = intcode::Program::new(&vec![104,1125899906842624,99]);
+        program.extend_memory(1_000_000);
+        program.run();
+        assert_eq!(1125899906842624, *program.outputs().last().unwrap());
+
+
     }
 }
