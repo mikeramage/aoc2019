@@ -3,7 +3,7 @@ use crate::utils;
 
 ///Day 5 solution
 pub fn day5() -> (usize, usize) {
-    let initial_state: Vec<i32> = utils::parse_input_by_sep("input/day5.txt", ',');
+    let initial_state: Vec<isize> = utils::parse_input_by_sep("input/day5.txt", ',');
     let mut program = intcode::Program::new(&initial_state);
     program.add_input(1);
     program.run();

@@ -1,26 +1,31 @@
 #[derive(Clone)]
 pub struct Program {
-    program: Vec<i32>,
+    program: Vec<isize>,
     instruction_pointer: usize,
-    inputs: Vec<i32>,
-    outputs: Vec<i32>,
+    inputs: Vec<isize>,
+    outputs: Vec<isize>,
+    relative_base: isize,
 }
 
 impl Program {
-    pub fn new(program: &[i32]) -> Program {
+    pub fn new(program: &[isize]) -> Program {
         Program {
             program: program.to_owned(),
             instruction_pointer: 0,
             inputs: vec![],
             outputs: vec![],
+            relative_base: 0,
         }
     }
 
     pub fn run(&mut self) -> ProgramResult {
         let mut result = ProgramResult::Halted;
         loop {
-            let mut instruction =
-                Instruction::new(&self.program[self.instruction_pointer..], &mut self.inputs);
+            let mut instruction = Instruction::new(
+                &self.program[self.instruction_pointer..],
+                &mut self.inputs,
+                self.relative_base,
+            );
             match instruction.execute(&mut self.program) {
                 InstructionResult::OkIncrement(increment) => {
                     self.instruction_pointer += increment;
@@ -46,37 +51,38 @@ impl Program {
         result
     }
 
-    pub fn set_noun_verb_inputs(&mut self, noun: i32, verb: i32) {
+    pub fn set_noun_verb_inputs(&mut self, noun: isize, verb: isize) {
         // Happy for this to panic - indices 1 and 2 should always be present
         self.program[1] = noun;
         self.program[2] = verb;
     }
 
-    pub fn add_input(&mut self, input: i32) {
+    pub fn add_input(&mut self, input: isize) {
         self.inputs.insert(0, input);
     }
 
-    pub fn set_inputs(&mut self, inputs: Vec<i32>) {
+    pub fn set_inputs(&mut self, inputs: Vec<isize>) {
         self.inputs = inputs;
     }
 
-    pub fn output(&self) -> i32 {
+    pub fn output(&self) -> isize {
         self.get_value_at(0)
     }
 
-    pub fn outputs(&self) -> &Vec<i32> {
+    pub fn outputs(&self) -> &Vec<isize> {
         &self.outputs
     }
 
-    pub fn get_value_at(&self, index: i32) -> i32 {
+    pub fn get_value_at(&self, index: isize) -> isize {
         self.program[index as usize]
     }
 
-    pub fn initialize(&mut self, initial_values: &[i32]) {
+    pub fn initialize(&mut self, initial_values: &[isize]) {
         initial_values.clone_into(&mut self.program);
         self.instruction_pointer = 0;
         self.inputs = vec![];
         self.outputs = vec![];
+        self.relative_base = 0;
     }
 }
 
@@ -89,14 +95,19 @@ pub enum ProgramResult {
 struct Instruction {
     op_code: OpCode,
     parameters: Vec<Parameter>,
-    input: Option<i32>, //Only relevant if OpCode is Input
+    input: Option<isize>, //Only relevant if OpCode is Input
+    relative_base: isize,
 }
 
 impl Instruction {
     //Instructions know how to build themselves from the program fragment starting at the beginning
     //of the instruction (the number of parameters to extract depends on the op code which is
     //encapsulated in the Instruction struct/impl).
-    pub fn new(program_fragment: &[i32], inputs: &mut Vec<i32>) -> Instruction {
+    pub fn new(
+        program_fragment: &[isize],
+        inputs: &mut Vec<isize>,
+        relative_base: isize,
+    ) -> Instruction {
         use OpCode::*;
         let op_code = OpCode::try_from(program_fragment[0]).unwrap();
         let parameters: Vec<Parameter> =
@@ -117,10 +128,11 @@ impl Instruction {
             op_code,
             parameters,
             input,
+            relative_base,
         }
     }
 
-    fn extract_parameters(program_fragment: &[i32], op_code: &OpCode) -> Vec<Parameter> {
+    fn extract_parameters(program_fragment: &[isize], op_code: &OpCode) -> Vec<Parameter> {
         use OpCode::*;
 
         let num_parameters = match op_code {
@@ -149,7 +161,7 @@ impl Instruction {
     }
 
     // Operate performs the relevant operation on operands and returns Ok or Halt
-    pub fn execute(&mut self, program: &mut [i32]) -> InstructionResult {
+    pub fn execute(&mut self, program: &mut [isize]) -> InstructionResult {
         use OpCode::*;
         match self.op_code {
             Add => self.do_op(program, Add),
@@ -164,7 +176,7 @@ impl Instruction {
         }
     }
 
-    fn do_op(&mut self, program: &mut [i32], op: OpCode) -> InstructionResult {
+    fn do_op(&mut self, program: &mut [isize], op: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
         let operands = self.parameters[0..(self.parameters.len() - 1)]
             .iter()
@@ -180,7 +192,7 @@ impl Instruction {
         InstructionResult::OkIncrement(self.parameters.len() + 1)
     }
 
-    fn do_input(&mut self, program: &mut [i32]) -> InstructionResult {
+    fn do_input(&mut self, program: &mut [isize]) -> InstructionResult {
         let output_location = self.parameters[0].value;
         match self.input {
             Some(x) => {
@@ -191,12 +203,12 @@ impl Instruction {
         }
     }
 
-    fn do_output(&mut self, program: &mut [i32]) -> InstructionResult {
+    fn do_output(&mut self, program: &mut [isize]) -> InstructionResult {
         let value = self.parameters[0].get_effective_value(program);
         InstructionResult::OutputIncrement(value, self.parameters.len() + 1)
     }
 
-    fn do_jump(&mut self, program: &mut [i32], jump_if_true: bool) -> InstructionResult {
+    fn do_jump(&mut self, program: &mut [isize], jump_if_true: bool) -> InstructionResult {
         let do_jump = self.parameters[0].get_effective_value(program);
 
         if (jump_if_true && do_jump != 0) || (!jump_if_true && do_jump == 0) {
@@ -207,7 +219,7 @@ impl Instruction {
         InstructionResult::OkIncrement(self.parameters.len() + 1)
     }
 
-    fn do_comparison(&mut self, program: &mut [i32], op_code: OpCode) -> InstructionResult {
+    fn do_comparison(&mut self, program: &mut [isize], op_code: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
         let first = self.parameters[0].get_effective_value(program);
         let second = self.parameters[1].get_effective_value(program);
@@ -247,10 +259,10 @@ enum OpCode {
     Halt,
 }
 
-impl TryFrom<i32> for OpCode {
+impl TryFrom<isize> for OpCode {
     type Error = String;
 
-    fn try_from(d: i32) -> Result<Self, Self::Error> {
+    fn try_from(d: isize) -> Result<Self, Self::Error> {
         use OpCode::*;
 
         //Take the rightmost 2 digits of d.
@@ -273,7 +285,7 @@ impl TryFrom<i32> for OpCode {
 pub enum InstructionResult {
     OkIncrement(usize), //Contains the increment to the instruction pointer
     OkSet(usize),       //Contains absolute value for instruction pointer
-    OutputIncrement(i32, usize),
+    OutputIncrement(isize, usize),
     AwaitInput,
     Halt,
 }
@@ -282,17 +294,19 @@ pub enum InstructionResult {
 enum Mode {
     Position,
     Immediate,
+    Relative,
 }
 
-impl TryFrom<i32> for Mode {
+impl TryFrom<isize> for Mode {
     type Error = String;
 
-    fn try_from(d: i32) -> Result<Self, Self::Error> {
+    fn try_from(d: isize) -> Result<Self, Self::Error> {
         use Mode::*;
 
         match d {
             0 => Ok(Position),
             1 => Ok(Immediate),
+            2 => Ok(Relative),
             _ => Err(format!("Invalid Mode '{}'", d)),
         }
     }
@@ -300,18 +314,18 @@ impl TryFrom<i32> for Mode {
 
 struct Parameter {
     mode: Mode,
-    value: i32,
+    value: isize,
 }
 
 impl Parameter {
-    fn new(parameter: (Mode, &i32)) -> Parameter {
+    fn new(parameter: (Mode, &isize)) -> Parameter {
         Parameter {
             mode: parameter.0,
             value: *parameter.1,
         }
     }
 
-    fn get_effective_value(&self, program: &[i32]) -> i32 {
+    fn get_effective_value(&self, program: &[isize]) -> isize {
         match self.mode {
             Mode::Position => program[self.value as usize],
             Mode::Immediate => self.value,

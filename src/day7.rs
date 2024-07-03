@@ -9,16 +9,16 @@ use std::thread;
 // sender corresponding to D's receiver.
 struct Amplifier {
     program: intcode::Program,
-    sender: mpsc::Sender<i32>,
-    receiver: mpsc::Receiver<i32>,
+    sender: mpsc::Sender<isize>,
+    receiver: mpsc::Receiver<isize>,
 }
 
 impl Amplifier {
     fn new(
         program: intcode::Program,
-        sender: mpsc::Sender<i32>,
-        receiver: mpsc::Receiver<i32>,
-        phase: i32,
+        sender: mpsc::Sender<isize>,
+        receiver: mpsc::Receiver<isize>,
+        phase: isize,
     ) -> Amplifier {
         let mut amplifier = Amplifier {
             program,
@@ -32,7 +32,7 @@ impl Amplifier {
 
 ///Day 7 solution
 pub fn day7() -> (usize, usize) {
-    let initial_state: Vec<i32> = utils::parse_input_by_sep("input/day7.txt", ',');
+    let initial_state: Vec<isize> = utils::parse_input_by_sep("input/day7.txt", ',');
     let mut program = intcode::Program::new(&initial_state);
 
     let part1 = (0..5)
@@ -65,7 +65,7 @@ pub fn day7() -> (usize, usize) {
     (part1 as usize, part2 as usize)
 }
 
-fn do_feedback_loop(phases: &[i32], program: &intcode::Program) -> i32 {
+fn do_feedback_loop(phases: &[isize], program: &intcode::Program) -> isize {
     // Create 5 mpsc channels for A->B, B->C, C->D, D->E and E (and to get things going, main)->A.
 
     //Create the one for E-A first; this is a special case
@@ -96,7 +96,7 @@ fn do_feedback_loop(phases: &[i32], program: &intcode::Program) -> i32 {
     let mut amplifier_thread_handles = vec![];
 
     for mut amplifier in amplifiers {
-        amplifier_thread_handles.push(thread::spawn(move || -> i32 {
+        amplifier_thread_handles.push(thread::spawn(move || -> isize {
             loop {
                 let input = amplifier.receiver.recv().expect("Failed to get input");
                 amplifier.program.add_input(input);
@@ -195,7 +195,7 @@ mod tests {
         );
     }
 
-    fn get_output_for_listing_and_phases(listing: &[i32], phases: &[i32]) -> i32 {
+    fn get_output_for_listing_and_phases(listing: &[isize], phases: &[isize]) -> isize {
         let mut program = intcode::Program::new(&listing);
         let mut output = 0;
         for phase in phases {
