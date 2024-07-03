@@ -13,18 +13,13 @@ pub fn day8() -> (usize, usize) {
 
     let part2: i32 = 0;
 
-    let decoded_image = decode_image(&image, layer_size);
-
-    for i in 0..HEIGHT {
-        for j in 0..WIDTH {
-            if decoded_image[i * WIDTH + j] == '0' {
-                print!(" ");
-            } else {
-                print!("*");
-            }
-        }
-        println!();
-    }
+    decode_image(&image, layer_size)
+        .chunks(WIDTH)
+        .for_each(|row| {
+            row.iter()
+                .for_each(|&c| print!("{}", if c == '0' { ' ' } else { '*' }));
+            println!();
+        });
 
     (part1, part2 as usize)
 }
@@ -60,19 +55,15 @@ fn decode_image(image: &str, layer_size: usize) -> Vec<char> {
         .collect::<Result<Vec<&str>, _>>()
         .unwrap();
 
-    let mut decoded_image: Vec<char> = Vec::new();
-
-    for i in 0..layer_size {
-        for layer in &layers {
-            let char_at_i = layer.chars().nth(i).unwrap();
-            if char_at_i != '2' {
-                decoded_image.push(char_at_i);
-                break;
-            }
-        }
-    }
-
-    decoded_image
+    (0..layer_size)
+        .map(|i| {
+            layers
+                .iter()
+                .map(|layer| layer.chars().nth(i).unwrap())
+                .find(|&c| c != '2')
+                .unwrap()
+        })
+        .collect()
 }
 
 #[cfg(test)]
