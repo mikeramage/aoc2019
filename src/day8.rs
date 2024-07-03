@@ -8,12 +8,13 @@ pub fn day8() -> (usize, usize) {
     const HEIGHT: usize = 6;
     assert!(image_len % (WIDTH * HEIGHT) == 0);
     let layer_size = WIDTH * HEIGHT;
+    let layers = to_layers(&image, layer_size);
 
-    let part1 = ones_times_twos_for_fewest_zeros(&image, layer_size);
+    let part1 = ones_times_twos_for_fewest_zeros(&layers);
 
     let part2: i32 = 0;
 
-    decode_image(&image, layer_size)
+    decode_image(&layers, layer_size)
         .chunks(WIDTH)
         .for_each(|row| {
             row.iter()
@@ -24,14 +25,7 @@ pub fn day8() -> (usize, usize) {
     (part1, part2 as usize)
 }
 
-fn ones_times_twos_for_fewest_zeros(image: &str, layer_size: usize) -> usize {
-    let layers: Vec<&str> = image
-        .as_bytes()
-        .chunks(layer_size)
-        .map(std::str::from_utf8)
-        .collect::<Result<Vec<&str>, _>>()
-        .unwrap();
-
+fn ones_times_twos_for_fewest_zeros(layers: &[&str]) -> usize {
     let (num_ones, num_twos) = layers
         .iter()
         .map(|layer| (layer.chars().filter(|&c| c == '0').count(), layer))
@@ -47,14 +41,7 @@ fn ones_times_twos_for_fewest_zeros(image: &str, layer_size: usize) -> usize {
     num_ones * num_twos
 }
 
-fn decode_image(image: &str, layer_size: usize) -> Vec<char> {
-    let layers: Vec<&str> = image
-        .as_bytes()
-        .chunks(layer_size)
-        .map(std::str::from_utf8)
-        .collect::<Result<Vec<&str>, _>>()
-        .unwrap();
-
+fn decode_image(layers: &[&str], layer_size: usize) -> Vec<char> {
     (0..layer_size)
         .map(|i| {
             layers
@@ -66,20 +53,32 @@ fn decode_image(image: &str, layer_size: usize) -> Vec<char> {
         .collect()
 }
 
+fn to_layers(image: &str, layer_size: usize) -> Vec<&str> {
+    image
+        .as_bytes()
+        .chunks(layer_size)
+        .map(std::str::from_utf8)
+        .collect::<Result<Vec<&str>, _>>()
+        .unwrap()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn test_ones_times_twos() {
-        assert_eq!(1, ones_times_twos_for_fewest_zeros("123456789012", 6));
+        assert_eq!(
+            1,
+            ones_times_twos_for_fewest_zeros(&to_layers("123456789012", 6))
+        );
     }
 
     #[test]
     fn test_decode_image() {
         assert_eq!(
             "0110",
-            decode_image("0222112222120000", 4)
+            decode_image(&to_layers("0222112222120000", 4), 4)
                 .iter()
                 .collect::<String>()
         );
