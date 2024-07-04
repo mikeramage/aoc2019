@@ -7,7 +7,7 @@ pub fn day2() -> (usize, usize) {
     let mut program = intcode::Program::new(&initial_state);
     program.set_noun_verb_inputs(12, 2);
     program.run();
-    let part1 = program.output();
+    let part1 = program.output_deprecated();
     let mut noun = 0;
     let mut verb = 0;
 
@@ -17,7 +17,7 @@ pub fn day2() -> (usize, usize) {
             program.initialize(&initial_state);
             program.set_noun_verb_inputs(ii, jj);
             program.run();
-            let output = program.output();
+            let output = program.output_deprecated();
             if output == 19690720 {
                 noun = ii;
                 verb = jj;

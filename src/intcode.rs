@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 #[derive(Clone)]
 pub struct Program {
     program: Vec<isize>,
+    memory: HashMap<isize, isize>,
     instruction_pointer: usize,
     inputs: Vec<isize>,
     outputs: Vec<isize>,
@@ -11,6 +14,7 @@ impl Program {
     pub fn new(program: &[isize]) -> Program {
         Program {
             program: program.to_owned(),
+            memory: HashMap::new(),
             instruction_pointer: 0,
             inputs: vec![],
             outputs: vec![],
@@ -21,12 +25,9 @@ impl Program {
     pub fn run(&mut self) -> ProgramResult {
         let mut result = ProgramResult::Halted;
         loop {
-            let mut instruction = Instruction::new(
-                &self.program[self.instruction_pointer..],
-                &mut self.inputs,
-                self.relative_base,
-            );
-            match instruction.execute(&mut self.program) {
+            let mut instruction =
+                Instruction::new(&self.program[self.instruction_pointer..], &mut self.inputs);
+            match instruction.execute(self) {
                 InstructionResult::OkIncrement(increment) => {
                     self.instruction_pointer += increment;
                 }
@@ -39,8 +40,8 @@ impl Program {
                 }
                 InstructionResult::OkRelativeBaseIncrement(base_increment, pointer_increment) => {
                     self.relative_base += base_increment;
-                    self.instruction_pointer += pointer_increment; 
-                } 
+                    self.instruction_pointer += pointer_increment;
+                }
                 InstructionResult::AwaitInput => {
                     result = ProgramResult::AwaitingInput;
                     break;
@@ -61,11 +62,6 @@ impl Program {
         self.program[2] = verb;
     }
 
-    pub fn extend_memory(&mut self, num_bytes: usize) {
-        let mut memory_extension: Vec<isize> = vec![0; num_bytes];
-        self.program.append(&mut memory_extension);
-    }
-
     pub fn add_input(&mut self, input: isize) {
         self.inputs.insert(0, input);
     }
@@ -74,7 +70,7 @@ impl Program {
         self.inputs = inputs;
     }
 
-    pub fn output(&self) -> isize {
+    pub fn output_deprecated(&self) -> isize {
         self.get_value_at(0)
     }
 
@@ -83,11 +79,26 @@ impl Program {
     }
 
     pub fn get_value_at(&self, index: isize) -> isize {
-        self.program[index as usize]
+        if (index as usize) < self.program.len() {
+            self.program[index as usize]
+        } else {
+            //Get it from memory
+            *self.memory.get(&index).or(Some(&0)).unwrap()
+        }
+    }
+
+    pub fn set_value_at(&mut self, index: isize, value: isize) {
+        if (index as usize) < self.program.len() {
+            self.program[index as usize] = value;
+        } else {
+            //Set it in memory
+            self.memory.insert(index, value);
+        }
     }
 
     pub fn initialize(&mut self, initial_values: &[isize]) {
         initial_values.clone_into(&mut self.program);
+        self.memory = HashMap::new();
         self.instruction_pointer = 0;
         self.inputs = vec![];
         self.outputs = vec![];
@@ -105,18 +116,13 @@ struct Instruction {
     op_code: OpCode,
     parameters: Vec<Parameter>,
     input: Option<isize>, //Only relevant if OpCode is Input
-    relative_base: isize,
 }
 
 impl Instruction {
     //Instructions know how to build themselves from the program fragment starting at the beginning
     //of the instruction (the number of parameters to extract depends on the op code which is
     //encapsulated in the Instruction struct/impl).
-    pub fn new(
-        program_fragment: &[isize],
-        inputs: &mut Vec<isize>,
-        relative_base: isize,
-    ) -> Instruction {
+    pub fn new(program_fragment: &[isize], inputs: &mut Vec<isize>) -> Instruction {
         use OpCode::*;
         let op_code = OpCode::try_from(program_fragment[0]).unwrap();
         let parameters: Vec<Parameter> =
@@ -137,7 +143,6 @@ impl Instruction {
             op_code,
             parameters,
             input,
-            relative_base,
         }
     }
 
@@ -170,7 +175,7 @@ impl Instruction {
     }
 
     // Operate performs the relevant operation on operands and returns Ok or Halt
-    pub fn execute(&mut self, program: &mut [isize]) -> InstructionResult {
+    pub fn execute(&mut self, program: &mut Program) -> InstructionResult {
         use OpCode::*;
         match self.op_code {
             Add => self.do_op(program, Add),
@@ -186,75 +191,78 @@ impl Instruction {
         }
     }
 
-    fn do_op(&mut self, program: &mut [isize], op: OpCode) -> InstructionResult {
+    fn do_op(&mut self, program: &mut Program, op: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
         let operands = self.parameters[0..(self.parameters.len() - 1)]
             .iter()
-            .map(|x| x.get_effective_value(program, self.relative_base));
-        program[output_location as usize] = match op {
-            OpCode::Add => operands.sum(),
-            OpCode::Multiply => operands.product(),
-            _ => panic!("Only currently valid for Add and Multiply"),
-        };
+            .map(|x| x.mode_adjusted_value(program));
+        program.set_value_at(
+            output_location,
+            match op {
+                OpCode::Add => operands.sum(),
+                OpCode::Multiply => operands.product(),
+                _ => panic!("Only currently valid for Add and Multiply"),
+            },
+        );
         // Parameters vec currently only contains the indices of program elements to add together;
         // the instruction also contained the op code and the output index, so need to add 2 to
         // increment the instruction pointer by the correct amount
         InstructionResult::OkIncrement(self.parameters.len() + 1)
     }
 
-    fn do_input(&mut self, program: &mut [isize]) -> InstructionResult {
+    fn do_input(&mut self, program: &mut Program) -> InstructionResult {
         let mut output_location = self.parameters[0].value;
-        if let Mode::Relative = self.parameters[0].mode{
-            output_location += self.relative_base;
+        if let Mode::Relative = self.parameters[0].mode {
+            output_location += program.relative_base;
         }
         match self.input {
             Some(x) => {
-                program[output_location as usize] = x;
+                program.set_value_at(output_location, x);
                 InstructionResult::OkIncrement(self.parameters.len() + 1)
             }
             None => InstructionResult::AwaitInput,
         }
     }
 
-    fn do_output(&mut self, program: &mut [isize]) -> InstructionResult {
-        let value = self.parameters[0].get_effective_value(program, self.relative_base);
+    fn do_output(&mut self, program: &mut Program) -> InstructionResult {
+        let value = self.parameters[0].mode_adjusted_value(program);
         InstructionResult::OutputIncrement(value, self.parameters.len() + 1)
     }
 
-    fn do_relative_base(&mut self, program: &mut [isize]) -> InstructionResult {
-        let value = self.parameters[0].get_effective_value(program, self.relative_base);
+    fn do_relative_base(&mut self, program: &mut Program) -> InstructionResult {
+        let value = self.parameters[0].mode_adjusted_value(program);
         InstructionResult::OkRelativeBaseIncrement(value, self.parameters.len() + 1)
     }
 
-    fn do_jump(&mut self, program: &mut [isize], jump_if_true: bool) -> InstructionResult {
-        let do_jump = self.parameters[0].get_effective_value(program, self.relative_base);
+    fn do_jump(&mut self, program: &mut Program, jump_if_true: bool) -> InstructionResult {
+        let do_jump = self.parameters[0].mode_adjusted_value(program);
 
         if (jump_if_true && do_jump != 0) || (!jump_if_true && do_jump == 0) {
-            let jump_to = self.parameters[1].get_effective_value(program, self.relative_base);
+            let jump_to = self.parameters[1].mode_adjusted_value(program);
             return InstructionResult::OkSet(jump_to as usize);
         }
 
         InstructionResult::OkIncrement(self.parameters.len() + 1)
     }
 
-    fn do_comparison(&mut self, program: &mut [isize], op_code: OpCode) -> InstructionResult {
+    fn do_comparison(&mut self, program: &mut Program, op_code: OpCode) -> InstructionResult {
         let output_location = self.parameters.last().unwrap().value;
-        let first = self.parameters[0].get_effective_value(program, self.relative_base);
-        let second = self.parameters[1].get_effective_value(program, self.relative_base);
+        let first = self.parameters[0].mode_adjusted_value(program);
+        let second = self.parameters[1].mode_adjusted_value(program);
 
         match op_code {
             OpCode::LessThan => {
                 if first < second {
-                    program[output_location as usize] = 1;
+                    program.set_value_at(output_location, 1);
                 } else {
-                    program[output_location as usize] = 0;
+                    program.set_value_at(output_location, 0);
                 }
             }
             OpCode::Equals => {
                 if first == second {
-                    program[output_location as usize] = 1;
+                    program.set_value_at(output_location, 1);
                 } else {
-                    program[output_location as usize] = 0;
+                    program.set_value_at(output_location, 0);
                 }
             }
             _ => panic!("Bad op code {:?}", op_code),
@@ -346,11 +354,11 @@ impl Parameter {
         }
     }
 
-    fn get_effective_value(&self, program: &[isize], relative_base: isize) -> isize {
+    fn mode_adjusted_value(&self, program: &Program) -> isize {
         match self.mode {
-            Mode::Position => program[self.value as usize],
+            Mode::Position => program.get_value_at(self.value),
             Mode::Immediate => self.value,
-            Mode::Relative => program[(self.value + relative_base) as usize]
+            Mode::Relative => program.get_value_at(self.value + program.relative_base),
         }
     }
 }
@@ -363,11 +371,11 @@ mod tests {
     fn test_a_simple_programs() {
         let mut program = Program::new(&vec![1, 9, 10, 3, 2, 3, 11, 0, 99, 30, 40, 50]);
         program.run();
-        assert_eq!(3500, program.output());
+        assert_eq!(3500, program.output_deprecated());
 
         program = Program::new(&vec![1, 0, 0, 0, 99]);
         program.run();
-        assert_eq!(2, program.output());
+        assert_eq!(2, program.output_deprecated());
 
         program = Program::new(&vec![2, 3, 0, 3, 99]);
         program.run();
@@ -379,7 +387,7 @@ mod tests {
 
         program = Program::new(&vec![1, 1, 1, 4, 99, 5, 6, 0, 99]);
         program.run();
-        assert_eq!(30, program.output());
+        assert_eq!(30, program.output_deprecated());
         assert_eq!(2, program.get_value_at(4));
     }
 
