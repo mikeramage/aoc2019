@@ -9,3 +9,4 @@ publish = ["afo"]
 [dependencies]
 regex = "1.10.5"
 itertools = "0.13.0"
+num = "0.4.3"
