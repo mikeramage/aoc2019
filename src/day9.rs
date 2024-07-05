@@ -7,10 +7,14 @@ pub fn day9() -> (usize, usize) {
     let mut program = intcode::Program::new(&initial_state);
     program.add_input(1);
     program.run();
-    println!("Outputs: {:?}", program.outputs());
     let part1 = *program.outputs().last().unwrap();
+    program.initialize(&initial_state);
+    program.add_input(2);
+    program.run();
+    let part2 = *program.outputs().last().unwrap();
 
-    (part1 as usize, 0)
+
+    (part1 as usize, part2 as usize)
 }
 
 #[cfg(test)]

@@ -83,7 +83,7 @@ impl Program {
             self.program[index as usize]
         } else {
             //Get it from memory
-            *self.memory.get(&index).or(Some(&0)).unwrap()
+            *self.memory.get(&index).unwrap_or(&0)
         }
     }
 
@@ -192,7 +192,10 @@ impl Instruction {
     }
 
     fn do_op(&mut self, program: &mut Program, op: OpCode) -> InstructionResult {
-        let output_location = self.parameters.last().unwrap().value;
+        let mut output_location = self.parameters.last().unwrap().value;
+        if let Mode::Relative = self.parameters.last().unwrap().mode {
+            output_location += program.relative_base;
+        }
         let operands = self.parameters[0..(self.parameters.len() - 1)]
             .iter()
             .map(|x| x.mode_adjusted_value(program));
@@ -246,7 +249,10 @@ impl Instruction {
     }
 
     fn do_comparison(&mut self, program: &mut Program, op_code: OpCode) -> InstructionResult {
-        let output_location = self.parameters.last().unwrap().value;
+        let mut output_location = self.parameters.last().unwrap().value;
+        if let Mode::Relative = self.parameters.last().unwrap().mode {
+            output_location += program.relative_base;
+        }
         let first = self.parameters[0].mode_adjusted_value(program);
         let second = self.parameters[1].mode_adjusted_value(program);
 
