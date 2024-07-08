@@ -2,6 +2,8 @@ use std::env;
 use std::time;
 mod day1;
 mod day10;
+mod day11;
+mod day12;
 mod day2;
 mod day3;
 mod day4;
@@ -18,7 +20,7 @@ mod utils;
 //But it's basically identical :-(
 //
 //I'm not copying anyone's solutions though!
-static DAYS: [fn() -> (usize, usize); 10] = [
+static DAYS: [fn() -> (usize, usize); 12] = [
     day1::day1,
     day2::day2,
     day3::day3,
@@ -29,6 +31,8 @@ static DAYS: [fn() -> (usize, usize); 10] = [
     day8::day8,
     day9::day9,
     day10::day10,
+    day11::day11,
+    day12::day12,
 ];
 
 fn main() {

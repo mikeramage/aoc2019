@@ -78,6 +78,10 @@ impl Program {
         &self.outputs
     }
 
+    pub fn remove_last_output(&mut self) -> Option<isize> {
+        self.outputs.pop()
+    }
+
     pub fn get_value_at(&self, index: isize) -> isize {
         if (index as usize) < self.program.len() {
             self.program[index as usize]
