@@ -13,7 +13,6 @@ pub fn day9() -> (usize, usize) {
     program.run();
     let part2 = *program.outputs().last().unwrap();
 
-
     (part1 as usize, part2 as usize)
 }
 
