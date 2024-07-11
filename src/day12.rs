@@ -43,7 +43,7 @@ impl Moon {
 
 #[derive(Debug, Hash, PartialEq, Eq, Ord, PartialOrd, Clone, Copy)]
 struct OneDState {
-    // Tuples of a single coordinate of position and velocity of each of the 4 moons, 
+    // Tuples of a single coordinate of position and velocity of each of the 4 moons,
     moon0: (isize, isize),
     moon1: (isize, isize),
     moon2: (isize, isize),
@@ -75,48 +75,60 @@ fn calculate_energy(moons: &[Moon]) -> isize {
         .sum()
 }
 
-fn simulate_motion(mut moons: Vec<Moon>, max_time_steps: usize, find_periods: bool) -> (Vec<Moon>, Vec<usize>) {
+fn simulate_motion(
+    mut moons: Vec<Moon>,
+    max_time_steps: usize,
+    find_periods: bool,
+) -> (Vec<Moon>, Vec<usize>) {
     let mut moonsets: Vec<HashSet<OneDState>> = vec![HashSet::new(); 3];
     let mut period_count: HashMap<usize, usize> = HashMap::new();
     let mut period_figurator: Vec<HashMap<OneDState, Vec<usize>>> = vec![HashMap::new(); 3];
     let mut counter = 0;
 
-    'outer:
-    while counter < max_time_steps {
-
+    'outer: while counter < max_time_steps {
         if find_periods {
             for i in 0..3 {
-                //x, y and z coordinates are independent, so figure out if there's a regular period when 
+                //x, y and z coordinates are independent, so figure out if there's a regular period when
                 //the x coordinates are the same for positions and velocities across the 4 moons.
                 let one_d_state: OneDState = match i {
                     //Grrr - can't dynamically index into tuple!
-                    0 => OneDState{moon0: (moons[0].position.0, moons[0].velocity.0),
+                    0 => OneDState {
+                        moon0: (moons[0].position.0, moons[0].velocity.0),
                         moon1: (moons[1].position.0, moons[1].velocity.0),
                         moon2: (moons[2].position.0, moons[2].velocity.0),
-                        moon3: (moons[3].position.0, moons[3].velocity.0)},
-                    1 => OneDState{moon0: (moons[0].position.1, moons[0].velocity.1),
+                        moon3: (moons[3].position.0, moons[3].velocity.0),
+                    },
+                    1 => OneDState {
+                        moon0: (moons[0].position.1, moons[0].velocity.1),
                         moon1: (moons[1].position.1, moons[1].velocity.1),
                         moon2: (moons[2].position.1, moons[2].velocity.1),
-                        moon3: (moons[3].position.1, moons[3].velocity.1)},
-                    2 => OneDState{moon0: (moons[0].position.2, moons[0].velocity.2),
+                        moon3: (moons[3].position.1, moons[3].velocity.1),
+                    },
+                    2 => OneDState {
+                        moon0: (moons[0].position.2, moons[0].velocity.2),
                         moon1: (moons[1].position.2, moons[1].velocity.2),
                         moon2: (moons[2].position.2, moons[2].velocity.2),
-                        moon3: (moons[3].position.2, moons[3].velocity.2)},
-                    other => panic!("Should only be iterating up to 2. Got {other}")
+                        moon3: (moons[3].position.2, moons[3].velocity.2),
+                    },
+                    other => panic!("Should only be iterating up to 2. Got {other}"),
                 };
-                 
+
                 if moonsets[i].contains(&one_d_state) {
                     //Seen this configuration before for the i coordinates of the moons
-                    
-                    period_figurator[i].entry(one_d_state).and_modify(|x| x.push(counter)).or_insert_with(|| vec![counter]);
+
+                    period_figurator[i]
+                        .entry(one_d_state)
+                        .and_modify(|x| x.push(counter))
+                        .or_insert_with(|| vec![counter]);
                     if period_figurator[i].get(&one_d_state).unwrap().len() == 3 {
-                        let diff = period_figurator[i].get(&one_d_state).unwrap()[2] - period_figurator[i].get(&one_d_state).unwrap()[1];
-                        let diff2 = period_figurator[i].get(&one_d_state).unwrap()[1] - period_figurator[i].get(&one_d_state).unwrap()[0];
+                        let diff = period_figurator[i].get(&one_d_state).unwrap()[2]
+                            - period_figurator[i].get(&one_d_state).unwrap()[1];
+                        let diff2 = period_figurator[i].get(&one_d_state).unwrap()[1]
+                            - period_figurator[i].get(&one_d_state).unwrap()[0];
                         if diff == diff2 {
                             //Cycle found
                             period_count.insert(i, diff);
-                        }
-                        else {
+                        } else {
                             panic!("Cycle not found :-(   first: {:?} second: {:?}. Moon: {:#?}\nConfigurator: {:#?}", diff, diff2, moons[i], period_figurator[i].get(&one_d_state).unwrap());
                         }
 
@@ -155,7 +167,10 @@ fn simulate_motion(mut moons: Vec<Moon>, max_time_steps: usize, find_periods: bo
         counter += 1;
     }
 
-    (moons, period_count.values().copied().collect::<Vec<usize>>())
+    (
+        moons,
+        period_count.values().copied().collect::<Vec<usize>>(),
+    )
 }
 
 fn parse_moons(moon_positions: &[String]) -> Vec<Moon> {

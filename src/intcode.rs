@@ -78,6 +78,10 @@ impl Program {
         &self.outputs
     }
 
+    pub fn clear_outputs(&mut self) {
+        self.outputs = vec![];
+    }
+
     pub fn remove_last_output(&mut self) -> Option<isize> {
         self.outputs.pop()
     }
