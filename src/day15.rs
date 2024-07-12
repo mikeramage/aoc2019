@@ -1,8 +1,17 @@
 use crate::intcode;
 use crate::utils;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
 
+static ALL_DIRECTIONS: [Direction; 4] = [
+    Direction::North,
+    Direction::South,
+    Direction::East,
+    Direction::West,
+];
+
+#[derive(Debug, Clone)]
 struct Location {
     position: Position,
     contents: LocationContents,
@@ -19,11 +28,11 @@ impl Location {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum LocationContents {
     Wall,
     Empty,
-    OxygenSystem,
+    Oxygen,
 }
 
 impl From<LocationContents> for isize {
@@ -31,7 +40,7 @@ impl From<LocationContents> for isize {
         match location_contents {
             LocationContents::Wall => 0,
             LocationContents::Empty => 1,
-            LocationContents::OxygenSystem => 2,
+            LocationContents::Oxygen => 2,
         }
     }
 }
@@ -42,12 +51,13 @@ impl TryFrom<isize> for LocationContents {
         match number {
             0 => Ok(LocationContents::Wall),
             1 => Ok(LocationContents::Empty),
-            2 => Ok(LocationContents::OxygenSystem),
+            2 => Ok(LocationContents::Oxygen),
             other => Err(format!("No match to LocationContents for {other}")),
         }
     }
 }
 
+#[derive(Debug, Clone)]
 struct Path {
     path: Vec<Direction>,
     reverse_path: Vec<Direction>,
@@ -55,21 +65,20 @@ struct Path {
 
 impl Path {
     pub fn new(path: Vec<Direction>) -> Path {
-        Path {
-            path,
-            reverse_path: vec![],
+        let mut reverse_path = vec![];
+        for direction in &path {
+            reverse_path.push(direction.opposite());
         }
+        reverse_path.reverse();
+
+        Path { path, reverse_path }
     }
 
-    pub fn reverse(&mut self) -> &Vec<Direction> {
-        // lazily evaluate the reverse path
-        if self.reverse_path.is_empty() {
-            for direction in &self.path {
-                self.reverse_path.push(direction.opposite());
-                //Don't reverse the path - it's a stack. LIFO.
-                // self.reverse_path.reverse();
-            }
-        }
+    pub fn forwards(&self) -> &Vec<Direction> {
+        &self.path
+    }
+
+    pub fn reverse(&self) -> &Vec<Direction> {
         &self.reverse_path
     }
 }
@@ -158,8 +167,14 @@ pub fn day15() -> (usize, usize) {
             match known_locations.get(&Position::new(x, y)) {
                 Some(location) => match location.contents {
                     LocationContents::Wall => print!("#"),
-                    LocationContents::Empty => print!("."),
-                    LocationContents::OxygenSystem => print!("O"),
+                    LocationContents::Empty => {
+                        if location.position == Position::new(0, 0) {
+                            print!("X")
+                        } else {
+                            print!(".")
+                        }
+                    }
+                    LocationContents::Oxygen => print!("O"),
                 },
                 None => print!(" "),
             }
@@ -167,7 +182,49 @@ pub fn day15() -> (usize, usize) {
         println!();
     }
 
-    (part1, 0)
+    let oxygen_position = known_locations
+        .iter()
+        .filter(|(_, location)| location.contents == LocationContents::Oxygen)
+        .last()
+        .unwrap()
+        .0;
+
+    let mut part2 = 0;
+    //I've defined this twice - should be static, but doesn't seem to be possible to have a static vector. Could maybe be an array.
+    let mut oxygenated_areas: HashSet<Position> = HashSet::from([*oxygen_position]);
+    loop {
+        part2 += 1;
+
+        let mut newly_oxygenated_areas: Vec<Position> = vec![];
+        for position in &oxygenated_areas {
+            for direction in &ALL_DIRECTIONS {
+                let new_position = match direction {
+                    Direction::North => Position::new(position.0, position.1 + 1),
+                    Direction::South => Position::new(position.0, position.1 - 1),
+                    Direction::West => Position::new(position.0 - 1, position.1),
+                    Direction::East => Position::new(position.0 + 1, position.1),
+                };
+                known_locations.entry(new_position).and_modify(|e| {
+                    if let LocationContents::Empty = e.contents {
+                        e.contents = LocationContents::Oxygen;
+                        newly_oxygenated_areas.push(new_position);
+                    }
+                });
+            }
+        }
+
+        oxygenated_areas.extend(newly_oxygenated_areas);
+
+        if !known_locations
+            .values()
+            .any(|location| location.contents == LocationContents::Empty)
+        {
+            //All empty space now oxygenated
+            break;
+        }
+    }
+
+    (part1, part2)
 }
 
 fn find_shortest_path_to_oxygen_system(
@@ -185,57 +242,86 @@ fn find_shortest_path_to_oxygen_system(
     );
     explore_queue.push_back(origin.position);
     known_locations.insert(Position::new(0, 0), origin);
-    let all_directions = vec![
-        Direction::North,
-        Direction::South,
-        Direction::East,
-        Direction::West,
-    ];
+
+    //println!("Initial explore queue: {:?}", explore_queue);
+    //println!("Initial known locations: {:?}", known_locations);
+    //println!();
 
     //Now the main loop
     loop {
-        let position_to_explore = &explore_queue.pop_front().unwrap();
+        let position_to_explore = explore_queue.pop_front().unwrap();
+        //println!("Exploring {:?}", position_to_explore);
 
-        follow_path_to_position(program, *position_to_explore, known_locations);
+        follow_path(program, position_to_explore, known_locations, true);
 
-        for direction in &all_directions {
-            check_in_direction(
-                *position_to_explore,
+        for direction in &ALL_DIRECTIONS {
+            let found_oxygen_system = check_in_direction(
+                position_to_explore,
                 direction,
                 program,
                 known_locations,
                 &mut explore_queue,
             );
-        }
-    }
 
-    0
+            if found_oxygen_system {
+                return known_locations
+                    .get(&position_to_explore)
+                    .unwrap()
+                    .path
+                    .path
+                    .len()
+                    + 1;
+            }
+        }
+
+        //retrace steps
+        follow_path(program, position_to_explore, known_locations, false);
+
+        //println!("Explore queue now: {:?}", explore_queue);
+        //println!("Known locations now: {:?}", known_locations);
+        //println!();
+    }
 }
 
-fn follow_path_to_position(
+fn follow_path(
     program: &mut intcode::Program,
     position: Position,
     known_locations: &HashMap<Position, Location>,
+    forwards: bool,
 ) {
     let location = known_locations.get(&position).unwrap();
 
-    for direction in &location.path.path {
+    let path = if forwards {
+        location.path.forwards()
+    } else {
+        location.path.reverse()
+    };
+
+    //println!("  Following path forwards? {}. Path: {:?}", forwards, path);
+
+    for direction in path {
         program.add_input((*direction).into());
         program.run();
         assert_eq!(
-            isize::from(LocationContents::Empty),
-            program.remove_last_output().unwrap()
+            LocationContents::Empty,
+            LocationContents::try_from(program.remove_last_output().unwrap()).unwrap()
         )
     }
 }
 
+//Checks in specified direction and returns True if we've found the Oxygen System, false otherwise
 fn check_in_direction(
     position_to_explore: Position,
     direction: &Direction,
     program: &mut intcode::Program,
     known_locations: &mut HashMap<Position, Location>,
     explore_queue: &mut VecDeque<Position>,
-) {
+) -> bool {
+    // println!(
+    //     "  Checking around position: {:?} in direction: {:?}",
+    //     position_to_explore, direction
+    // );
+
     let new_position = match direction {
         Direction::North => Position::new(position_to_explore.0, position_to_explore.1 + 1),
         Direction::South => Position::new(position_to_explore.0, position_to_explore.1 - 1),
@@ -243,13 +329,46 @@ fn check_in_direction(
         Direction::East => Position::new(position_to_explore.0 + 1, position_to_explore.1),
     };
 
-    if known_locations.contains_key(&new_position) {
-        //ignore it - we've alread found it by another path
-    } else {
+    let mut path = known_locations
+        .get(&position_to_explore)
+        .unwrap()
+        .path
+        .path
+        .clone();
+    path.push(*direction);
+
+    let mut found_oxygen_system = false;
+
+    //This closure does a lot of heavy lifting - i.e. it has side effects such as running the program
+    //and adding the new location to the explore queue if it's empty.
+    known_locations.entry(new_position).or_insert_with(|| {
         program.add_input((*direction).into());
         program.run();
-        if let Some(output) = program.remove_last_output() {
-            // TODO!
+
+        match LocationContents::try_from(program.remove_last_output().unwrap()) {
+            Ok(LocationContents::Wall) => {
+                //println!("  Found wall!");
+                Location::new(new_position, LocationContents::Wall, Path::new(path))
+            }
+            Ok(LocationContents::Empty) => {
+                //Droid has moved forward - move back
+                program.add_input(direction.opposite().into());
+                program.run();
+                explore_queue.push_back(new_position);
+                //println!("  Found empty!");
+                Location::new(new_position, LocationContents::Empty, Path::new(path))
+            }
+            Ok(LocationContents::Oxygen) => {
+                //Droid has moved forward - move back.
+                program.add_input(direction.opposite().into());
+                program.run();
+                found_oxygen_system = true;
+                //println!("  Found oxygen system!!!");
+                Location::new(new_position, LocationContents::Oxygen, Path::new(path))
+            }
+            Err(err) => panic!("Output doesn't correspond to location! Message: {err}"),
         }
-    }
+    });
+
+    found_oxygen_system
 }

@@ -117,7 +117,7 @@ fn total_fuel_possible(
     reactions: &HashMap<String, (usize, HashMap<String, usize>)>,
     spares: &mut HashMap<String, usize>,
 ) -> usize {
-    let fuel = 0;
+    // let fuel = 0;
     //This naive algorithm takes too long, especially for the unit tests (though it works for the
     // main day14 after 2 and a half minutes on releast build). Presumably the set of spares repeats
     // let mut ore_remaining: usize = 1_000_000_000_000;
@@ -165,8 +165,9 @@ fn total_fuel_possible(
     //         }
     //     }
     // }
-
-    fuel
+    //
+    // fuel
+    0
 }
 
 #[cfg(test)]
