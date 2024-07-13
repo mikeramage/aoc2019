@@ -190,7 +190,6 @@ pub fn day15() -> (usize, usize) {
         .0;
 
     let mut part2 = 0;
-    //I've defined this twice - should be static, but doesn't seem to be possible to have a static vector. Could maybe be an array.
     let mut oxygenated_areas: HashSet<Position> = HashSet::from([*oxygen_position]);
     loop {
         part2 += 1;
