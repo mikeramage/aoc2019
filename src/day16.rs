@@ -12,7 +12,6 @@ pub fn day16() -> (usize, usize) {
         .collect::<Vec<isize>>();
 
     let part1: usize = (0..100)
-        .into_iter()
         .fold(signal, |acc, _| do_one_phase(&acc, &BASE))
         .iter()
         .map(|d| d.to_string())
@@ -100,7 +99,6 @@ mod tests {
                 .map(|c| c.to_digit(10).unwrap() as isize)
                 .collect::<Vec<isize>>(),
             (0..100)
-                .into_iter()
                 .fold(input, |acc, _| do_one_phase(&acc, &BASE))
                 .iter()
                 .map(|d| *d)
@@ -118,7 +116,6 @@ mod tests {
                 .map(|c| c.to_digit(10).unwrap() as isize)
                 .collect::<Vec<isize>>(),
             (0..100)
-                .into_iter()
                 .fold(input, |acc, _| do_one_phase(&acc, &BASE))
                 .iter()
                 .map(|d| *d)
@@ -136,7 +133,6 @@ mod tests {
                 .map(|c| c.to_digit(10).unwrap() as isize)
                 .collect::<Vec<isize>>(),
             (0..100)
-                .into_iter()
                 .fold(input, |acc, _| do_one_phase(&acc, &BASE))
                 .iter()
                 .map(|d| *d)
