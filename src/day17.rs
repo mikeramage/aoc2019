@@ -135,6 +135,7 @@ pub fn day17() -> (usize, usize) {
     // C = R12, L12, L4, L4
     // path = A, B, B, A, C, A, C, A, C, B
     // So the naive approach works. Was I meant to do some programming here to algorithmically find A, B and C from the path?
+    // ... Yep, probably. I should come back and do some kind of greedy algorithm for breaking down the instructions into A, B and C.
     program.initialize(&input);
     program.set_value_at(0, 2);
     let program_result = program.run();
