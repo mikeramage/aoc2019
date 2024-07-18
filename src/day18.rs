@@ -151,6 +151,8 @@ pub fn day18() -> (usize, usize) {
 
     // breadth first loop
     let (key_paths, blocking_doors) = find_keys_and_doors(&mut frontier, &location_map);
+    println!("Keys: {:?}", key_paths);
+    println!("Doors: {:?}", blocking_doors);
 
     (0, 0)
 }
