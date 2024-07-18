@@ -186,7 +186,7 @@ fn find_keys_and_doors(
             LocationContent::Wall => {} //Wall - do nothing. We're done.
         }
 
-        *current_location.explored.borrow_mut() = false;
+        *current_location.explored.borrow_mut() = true;
     }
 
     (key_paths, blocking_doors)
