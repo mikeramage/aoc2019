@@ -5,6 +5,19 @@ use std::{
     rc::{Rc, Weak},
 };
 
+// Total blind spot here and I failed to come up with a decent solution :( I have now discovered you can just do breadth first search, but incorporate the set of
+// keys picked up into the definition of the node - that means you'll keep going back and forwards until you've picked up all the keys. And breadth first means the
+// first time you get all the keys, it'll be optimal. I totally failed to consider making the set of keys part of the state :(
+//
+// That said, through sheer bloody mindedness I got the answers out, and unlike most solutions I've seen, my part 2 was much easier for all the hard work I put into part 1.
+//
+// For posterity, I've kept all the various failed approaches (except early ones I deleted completely - they might be in the git history, might not) as well as my
+// "manual" solutions.
+//
+// What did I learn? Look for a simple solution - there are various bits of overengineering here and over-complicated data structures.
+// Calculate complexity ahead of time so I don't waste effort on some complicated search that simply won't work because the
+// space is too big. I used a lot of interior mutability here, which, although I never ran into panics due to violation of borrowing rules, were probably not best practice.
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
 enum LocationContent {
     Empty,
@@ -258,9 +271,9 @@ pub fn day18() -> (usize, usize) {
     }
     // ... and that gives 5040, which is about 500 too big.
 
-    //Manual analysis once paths and dead ends are worked out, suggests the following is optimal, or extremely clsoe:
+    //Manual analysis once paths and dead ends are worked out suggests the following is optimal, or extremely close:
     //p,y,e,b,s,j,v,f,k,c,g,i,r,a,h,u,w,o,z,d,m,q,l,n,t,x
-    //Let's try it, then I'll try to turn my thought processes into an algorithm.
+    //Let's try it, then I'll try to turn my thought processes into an algorithm ...
     // ... and, whaddaya know, it's optimal - 4544.
     //My thought processes:
     // - There are 5 main paths to take from the entrance, 0, 1, 2, 3, 4. Some of these fork later on and I've labelled these differently above, but I think that's a mistake as it doesn't affect the logic
@@ -300,7 +313,9 @@ pub fn day18() -> (usize, usize) {
     // each point in the tree - branching factor of at most 5. Let's give that a crack. I think my reasoning above is a little subtle to be implemented, though I could probably
     // come up with some rules to prioritize the critical keys.
     //
-    // Nope, still too slow to converge on the solution. Still too many interim possibilities once we've picked up a few keys. So I'll come up with a solution presently.
+    // Nope, still too slow to converge on the solution. Still too many interim possibilities once we've picked up a few keys.
+    //
+    // And, I can't be bothered to do any better. I've got the answers now so on to day 19.
 
     let optimal_guess: Vec<LocationContent> = vec![
         LocationContent::Key('p'),
@@ -409,7 +424,8 @@ pub fn day18() -> (usize, usize) {
     //Another big fudge.
     part2 -= 12;
 
-    // Algorithm is as follows.
+    // Here's my big beast of a search attempt.
+    //
     // Basically this is A* search, but some nodes are blocked by doors so the available nodes are dependent on the path taken
     // We're making the following assumptions:
     // - Doors don't open shortcuts - i.e. the path from some key to another is either accessible if the relevant keys have been obtained,
