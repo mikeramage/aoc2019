@@ -8,11 +8,12 @@ use itertools::Itertools;
 struct Position {
     row: isize,
     col: isize,
+    level: isize, //The extra dimension :)
 }
 
 impl Position {
-    fn new(row: isize, col: isize) -> Position {
-        Position { row, col }
+    fn new(row: isize, col: isize, level: isize) -> Position {
+        Position { row, col, level }
     }
 }
 
@@ -78,17 +79,24 @@ pub fn day20() -> (usize, usize) {
 
     path_viz.insert(*path.last().unwrap(), '!');
 
-    for row in 0..(max_row_index + 1) {
-        for col in 0..(max_col_index + 1) {
-            print!(
-                "{}",
-                match path_viz.get(&Position::new(row, col)) {
-                    Some(c) => *c,
-                    None => *ascii_maze.get(&Position::new(row, col)).unwrap(),
-                }
-            );
+    for level in 0..1 {
+        //TODO change the range above to get a new graph for each level
+        println!(
+            "\n------------------------ Level {} ------------------------\n",
+            level
+        );
+        for row in 0..(max_row_index + 1) {
+            for col in 0..(max_col_index + 1) {
+                print!(
+                    "{}",
+                    match path_viz.get(&Position::new(row, col, level)) {
+                        Some(c) => *c,
+                        None => *ascii_maze.get(&Position::new(row, col, level)).unwrap(),
+                    }
+                );
+            }
+            println!();
         }
-        println!();
     }
 
     (path_length, 0)
@@ -128,8 +136,11 @@ fn path_to_exit(
         explored.insert(current_position);
 
         for (d_row, d_col) in directions.iter() {
-            let mut new_position =
-                Position::new(current_position.row + d_row, current_position.col + d_col);
+            let mut new_position = Position::new(
+                current_position.row + d_row,
+                current_position.col + d_col,
+                current_position.level,
+            );
             let mut new_node = maze.get(&new_position).unwrap();
 
             //Check if we're stepping into the void from a portal and update the new node to the
@@ -230,7 +241,7 @@ fn parse_input(
     let mut ascii_maze: HashMap<Position, char> = HashMap::new();
     for (row, line) in input.lines().enumerate() {
         for (col, c) in line.chars().enumerate() {
-            let pos = Position::new(row as isize, col as isize);
+            let pos = Position::new(row as isize, col as isize, 0);
             if c.is_ascii_uppercase() {
                 labels.insert(pos, c);
             }
@@ -261,14 +272,14 @@ fn parse_input(
         let mut label_neighbour: Option<char> = None;
         for (d_row, d_col) in d_pos {
             let c = ascii_maze
-                .get(&Position::new(pos.row + d_row, pos.col + d_col))
+                .get(&Position::new(pos.row + d_row, pos.col + d_col, 0))
                 .unwrap();
             if *c == '.' {
                 empty_neighbour = Some(*c);
                 empty_neighbour_direction = (d_row, d_col);
             }
 
-            if let Some(c) = labels.get(&Position::new(pos.row + d_row, pos.col + d_col)) {
+            if let Some(c) = labels.get(&Position::new(pos.row + d_row, pos.col + d_col, 0)) {
                 label_neighbour = Some(*c);
             }
         }
@@ -293,12 +304,14 @@ fn parse_input(
                     v.push(Position::new(
                         pos.row + empty_neighbour_direction.0,
                         pos.col + empty_neighbour_direction.1,
+                        0,
                     ))
                 })
                 .or_insert_with(|| {
                     vec![Position::new(
                         pos.row + empty_neighbour_direction.0,
                         pos.col + empty_neighbour_direction.1,
+                        0,
                     )]
                 });
 
@@ -306,13 +319,14 @@ fn parse_input(
                 Position::new(
                     pos.row + empty_neighbour_direction.0,
                     pos.col + empty_neighbour_direction.1,
+                    0,
                 ),
                 full_label,
             );
         };
     }
 
-    let mut entrance_position = Position::new(0, 0);
+    let mut entrance_position = Position::new(0, 0, 0);
     //Finally, construct the maze
     for (position, c) in &ascii_maze {
         match reverse_portal_map.get(&position) {
