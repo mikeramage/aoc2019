@@ -8,12 +8,23 @@ use itertools::Itertools;
 struct Position {
     row: isize,
     col: isize,
-    level: isize, //The extra dimension :)
 }
 
 impl Position {
-    fn new(row: isize, col: isize, level: isize) -> Position {
-        Position { row, col, level }
+    fn new(row: isize, col: isize) -> Position {
+        Position { row, col }
+    }
+}
+
+#[derive(Clone, Copy, Ord, PartialEq, PartialOrd, Eq, Hash, Debug)]
+struct HyperPosition {
+    position: Position,
+    level: isize,
+}
+
+impl HyperPosition {
+    fn new(position: Position, level: isize) -> HyperPosition {
+        HyperPosition { position, level }
     }
 }
 
@@ -57,29 +68,63 @@ pub fn day20() -> (usize, usize) {
     let input = fs::read_to_string("input/day20.txt").expect("Could not read input file");
     let (ascii_maze, maze, entrance, max_row_index, max_col_index) = parse_input(&input);
 
-    let (path_length, path) =
-        path_to_exit(&maze, &entrance, false).expect("Failed to solve maze :(");
+    let (path_length_part1, path) = path_to_exit(
+        &maze,
+        &HyperPosition::new(entrance, 0),
+        false,
+        max_row_index,
+        max_col_index,
+    )
+    .expect("Failed to solve maze :(");
 
-    //Quick visualization
+    visualize_solution(&path, &ascii_maze, max_row_index, max_col_index);
+
+    let (path_length_part2, path) = path_to_exit(
+        &maze,
+        &HyperPosition::new(entrance, 0),
+        true,
+        max_row_index,
+        max_col_index,
+    )
+    .expect("Failed to solve maze :(");
+
+    visualize_solution(&path, &ascii_maze, max_row_index, max_col_index);
+
+    (path_length_part1, path_length_part2)
+    // (path_length_part1, 0)
+}
+
+fn visualize_solution(
+    path: &[HyperPosition],
+    ascii_maze: &HashMap<Position, char>,
+    max_row_index: isize,
+    max_col_index: isize,
+) {
     //First convert the path to a map of position to character
-    let mut path_viz: HashMap<Position, char> = path
+    let mut max_level = 0;
+    let mut path_viz: HashMap<HyperPosition, char> = path
         .iter()
         .tuple_windows()
         .map(|(this, next)| {
-            let c = match (next.row - this.row, next.col - this.col) {
+            let c = match (
+                next.position.row - this.position.row,
+                next.position.col - this.position.col,
+            ) {
                 (0, 1) => '>',
                 (0, -1) => '<',
                 (1, 0) => 'v',
                 (-1, 0) => '^',
                 _ => '*', //Teleportation!
             };
+            //Cheeky side-effect - track the max level we've seen
+            max_level = max(max_level, this.level);
             (*this, c)
         })
         .collect();
 
     path_viz.insert(*path.last().unwrap(), '!');
 
-    for level in 0..1 {
+    for level in 0..(max_level + 1) {
         //TODO change the range above to get a new graph for each level
         println!(
             "\n------------------------ Level {} ------------------------\n",
@@ -89,98 +134,158 @@ pub fn day20() -> (usize, usize) {
             for col in 0..(max_col_index + 1) {
                 print!(
                     "{}",
-                    match path_viz.get(&Position::new(row, col, level)) {
+                    match path_viz.get(&HyperPosition::new(Position::new(row, col), level)) {
                         Some(c) => *c,
-                        None => *ascii_maze.get(&Position::new(row, col, level)).unwrap(),
+                        None => *ascii_maze.get(&Position::new(row, col)).unwrap(),
                     }
                 );
             }
             println!();
         }
     }
-
-    (path_length, 0)
 }
 
 // Returns the length of the path to the exit and the path itself for visualization.
 fn path_to_exit(
     maze: &HashMap<Position, Node>,
-    entrance: &Position,
+    entrance: &HyperPosition,
     recursive: bool, //Entrance and Exit are only available in level 0. Inner portals go down a level, outer portals back up.
-) -> Result<(usize, Vec<Position>), &'static str> {
-    //Simple BFS algorithm.
+    max_row_index: isize,
+    max_col_index: isize,
+) -> Result<(usize, Vec<HyperPosition>), &'static str> {
+    //Simple BFS algorithm. Note that the maze is a map of position rather than hyperposition to avoid unnecessary duplication/copying.
 
     //Practicing avoiding interior mutability of nodes so use auxiliary structure
     //to store parent relationships and path lengths.
     //Keyed by node position, value is the position of the node's parent and the
-    //length of the path to this node, and the level (for recursive
+    //length of the path to this node
 
-    let mut search_state: HashMap<Position, (Position, usize)> = HashMap::new();
+    let mut search_state: HashMap<HyperPosition, (HyperPosition, usize)> = HashMap::new();
     //Don't add the entrance to the search state as we use the absence of an entry
     //to terminate the evaluation of the path taken through the maze
 
-    let mut frontier: VecDeque<Position> = VecDeque::new();
+    let mut frontier: VecDeque<HyperPosition> = VecDeque::new();
     frontier.push_back(*entrance);
 
-    let mut explored: HashSet<Position> = HashSet::new();
+    let mut explored: HashSet<HyperPosition> = HashSet::new();
     let directions = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
-    let mut exit_position: Option<Position> = None;
+    let mut exit_position: Option<HyperPosition> = None;
+
+    // let mut loop_counter = 0;
 
     while !frontier.is_empty() {
         let current_position = frontier.pop_front().unwrap();
-        let current_node = maze.get(&current_position).unwrap();
+        let current_node = maze.get(&current_position.position).unwrap();
         let current_path_length = match search_state.get(&current_position) {
             Some((_, path_length)) => *path_length,
             None => 0,
         };
         explored.insert(current_position);
+        // if matches!(current_node.node_type, NodeType::Portal(_))
+        //     && !is_outer_portal(current_position.position, max_row_index, max_col_index)
+        // {
+        //     //inner portal
+        //     inner_portals_explored.insert(current_position.position);
+        // }
 
         for (d_row, d_col) in directions.iter() {
-            let mut new_position = Position::new(
-                current_position.row + d_row,
-                current_position.col + d_col,
+            let mut new_position = HyperPosition::new(
+                Position::new(
+                    current_position.position.row + d_row,
+                    current_position.position.col + d_col,
+                ),
                 current_position.level,
             );
-            let mut new_node = maze.get(&new_position).unwrap();
+            let mut new_node = maze.get(&new_position.position).unwrap();
 
             //Check if we're stepping into the void from a portal and update the new node to the
-            //teleported-to position.
+            //teleported-to position. In recursive mode this results in a level change
             if let NodeType::Void = new_node.node_type {
                 //Void - stepping into the void from a portal jumps to its partner
                 if let Some(partner_pos) = current_node.portal_partner {
-                    //Overwrite the position
-                    new_position = partner_pos;
-                    new_node = maze.get(&new_position).unwrap();
+                    //Overwrite the position and figure out the level
+                    let new_level = if !recursive {
+                        0
+                    } else if is_outer_portal(
+                        current_position.position,
+                        max_row_index,
+                        max_col_index,
+                    ) {
+                        current_position.level - 1
+                    } else {
+                        current_position.level + 1
+                    };
+                    new_position = HyperPosition::new(partner_pos, new_level);
+                    new_node = maze.get(&new_position.position).unwrap();
                 }
             }
 
-            if explored.contains(&new_position) {
-                //Ignore anything we've seen before
+            if explored.contains(&new_position) || new_position.level > 25 {
+                //Ignore anything we've seen before or anything below depth 25
+                //to avoid recursive loops (need to experiment with the value to
+                // ensure optimality - I originally set to 100 and the optimum was at max
+                // depth of 25, so I've set that to minimize running speed)
+                //
+                // There's probably a cleverer solution that spots and prunes
+                // recursive loops, but this has the benefit of simplicity!
                 continue;
             } else {
                 //Take appropriate action depending on the new node type
                 match new_node.node_type {
                     NodeType::Void | NodeType::Wall => continue, //Wall or void - ignore
                     NodeType::Exit => {
-                        //Exit -> success! Break out of the loop
-                        //Success!
-                        exit_position = Some(new_position);
-                        search_state
-                            .insert(new_position, (current_position, current_path_length + 1));
-                        break;
+                        if !recursive || new_position.level == 0 {
+                            //Exit -> success! Break out of the loop
+                            //Success!
+                            exit_position = Some(new_position);
+                            search_state
+                                .insert(new_position, (current_position, current_path_length + 1));
+                            break;
+                        } else {
+                            continue; //Exit is a wall in recursive mode with level > 0
+                        }
                     }
-                    NodeType::Empty | NodeType::Portal(_) => {
+                    NodeType::Empty => {
                         //Add the new node to the frontier and update search state map
                         frontier.push_back(new_position);
                         search_state
                             .insert(new_position, (current_position, current_path_length + 1));
                     }
+                    NodeType::Portal(_) => {
+                        if !recursive
+                            || !is_outer_portal(new_position.position, max_row_index, max_col_index)
+                            || new_position.level != 0
+                        {
+                            //Add the new node to the frontier and update search state map
+                            frontier.push_back(new_position);
+                            search_state
+                                .insert(new_position, (current_position, current_path_length + 1));
+                        } else {
+                            //Outer portal at level 0. Treat as wall
+                            continue;
+                        }
+                    }
                     NodeType::Entrance => {
-                        unreachable!("Found Entrance, but we should never revisit!")
+                        if !recursive {
+                            unreachable!("Found Entrance, but we should never revisit!")
+                        } else {
+                            //Treat as wall
+                            continue;
+                        }
                     }
                 }
             }
         }
+
+        // loop_counter += 1;
+
+        // if loop_counter % 1000 == 0 {
+        //     println!("Loop counter: {}", loop_counter);
+        //     println!("Current position: {:?}", current_position);
+        //     println!("Current path length: {:?}", current_path_length);
+        //     println!("Explored set size: {:?}", explored.len());
+        //     println!("Frontier size: {:?}", frontier.len());
+        // }
     }
 
     match exit_position {
@@ -213,6 +318,17 @@ fn path_to_exit(
     }
 }
 
+fn is_outer_portal(position: Position, max_row_index: isize, max_col_index: isize) -> bool {
+    if position.row == 2
+        || position.row == max_row_index - 2
+        || position.col == 2
+        || position.col == max_col_index - 2
+    {
+        return true;
+    }
+    false
+}
+
 //Returns
 // - An ASCII representation of the maze for output
 // - the hash map of position to node for the maze
@@ -241,7 +357,7 @@ fn parse_input(
     let mut ascii_maze: HashMap<Position, char> = HashMap::new();
     for (row, line) in input.lines().enumerate() {
         for (col, c) in line.chars().enumerate() {
-            let pos = Position::new(row as isize, col as isize, 0);
+            let pos = Position::new(row as isize, col as isize);
             if c.is_ascii_uppercase() {
                 labels.insert(pos, c);
             }
@@ -272,14 +388,14 @@ fn parse_input(
         let mut label_neighbour: Option<char> = None;
         for (d_row, d_col) in d_pos {
             let c = ascii_maze
-                .get(&Position::new(pos.row + d_row, pos.col + d_col, 0))
+                .get(&Position::new(pos.row + d_row, pos.col + d_col))
                 .unwrap();
             if *c == '.' {
                 empty_neighbour = Some(*c);
                 empty_neighbour_direction = (d_row, d_col);
             }
 
-            if let Some(c) = labels.get(&Position::new(pos.row + d_row, pos.col + d_col, 0)) {
+            if let Some(c) = labels.get(&Position::new(pos.row + d_row, pos.col + d_col)) {
                 label_neighbour = Some(*c);
             }
         }
@@ -304,14 +420,12 @@ fn parse_input(
                     v.push(Position::new(
                         pos.row + empty_neighbour_direction.0,
                         pos.col + empty_neighbour_direction.1,
-                        0,
                     ))
                 })
                 .or_insert_with(|| {
                     vec![Position::new(
                         pos.row + empty_neighbour_direction.0,
                         pos.col + empty_neighbour_direction.1,
-                        0,
                     )]
                 });
 
@@ -319,14 +433,13 @@ fn parse_input(
                 Position::new(
                     pos.row + empty_neighbour_direction.0,
                     pos.col + empty_neighbour_direction.1,
-                    0,
                 ),
                 full_label,
             );
         };
     }
 
-    let mut entrance_position = Position::new(0, 0, 0);
+    let mut entrance_position = Position::new(0, 0);
     //Finally, construct the maze
     for (position, c) in &ascii_maze {
         match reverse_portal_map.get(&position) {
