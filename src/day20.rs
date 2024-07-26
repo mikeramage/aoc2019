@@ -168,7 +168,7 @@ fn path_to_exit(
     frontier.push_back(*entrance);
 
     let mut explored: HashSet<HyperPosition> = HashSet::new();
-    let directions = vec![(0, 1), (1, 0), (0, -1), (-1, 0)];
+    let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
     let mut exit_position: Option<HyperPosition> = None;
 
     // let mut loop_counter = 0;
@@ -291,17 +291,16 @@ fn path_to_exit(
     match exit_position {
         Some(position) => {
             let mut path_to_exit = vec![position];
-            let (parent_position, path_length) = search_state.get(&position).expect(
-                format!(
+            let (parent_position, path_length) = search_state.get(&position).unwrap_or_else(|| {
+                panic!(
                     "Search state unexpectedly has no entry for position {:?}",
                     position
                 )
-                .as_str(),
-            );
+            });
 
             path_to_exit.push(*parent_position);
 
-            let mut state = search_state.get(&parent_position);
+            let mut state = search_state.get(parent_position);
             while state.is_some() {
                 let parent_position = state.unwrap().0;
                 path_to_exit.push(parent_position);
@@ -310,11 +309,9 @@ fn path_to_exit(
 
             path_to_exit.reverse();
 
-            return Ok((*path_length, path_to_exit));
+            Ok((*path_length, path_to_exit))
         }
-        None => {
-            return Err("Could not find a path to the exit");
-        }
+        None => Err("Could not find a path to the exit"),
     }
 }
 
@@ -404,11 +401,11 @@ fn parse_input(
             assert!(label_neighbour.is_some());
             let full_label: String = match empty_neighbour_direction {
                 //empty neighbour to right or below so label is neighbour label + label
-                (0, 1) | (1, 0) => vec![label_neighbour.unwrap(), *label]
+                (0, 1) | (1, 0) => [label_neighbour.unwrap(), *label]
                     .iter()
                     .collect::<String>(),
                 //empty neighbour to left or above so label is neighbour label + label
-                (0, -1) | (-1, 0) => vec![*label, label_neighbour.unwrap()]
+                (0, -1) | (-1, 0) => [*label, label_neighbour.unwrap()]
                     .iter()
                     .collect::<String>(),
                 _ => unreachable!(),
@@ -442,7 +439,7 @@ fn parse_input(
     let mut entrance_position = Position::new(0, 0);
     //Finally, construct the maze
     for (position, c) in &ascii_maze {
-        match reverse_portal_map.get(&position) {
+        match reverse_portal_map.get(position) {
             Some(label) => {
                 let node_type = match label.as_str() {
                     "AA" => {
