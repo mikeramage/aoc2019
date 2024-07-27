@@ -171,9 +171,7 @@ fn path_to_exit(
     let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
     let mut exit_position: Option<HyperPosition> = None;
 
-    // let mut loop_counter = 0;
-
-    while !frontier.is_empty() {
+    'outer: while !frontier.is_empty() {
         let current_position = frontier.pop_front().unwrap();
         let current_node = maze.get(&current_position.position).unwrap();
         let current_path_length = match search_state.get(&current_position) {
@@ -181,12 +179,6 @@ fn path_to_exit(
             None => 0,
         };
         explored.insert(current_position);
-        // if matches!(current_node.node_type, NodeType::Portal(_))
-        //     && !is_outer_portal(current_position.position, max_row_index, max_col_index)
-        // {
-        //     //inner portal
-        //     inner_portals_explored.insert(current_position.position);
-        // }
 
         for (d_row, d_col) in directions.iter() {
             let mut new_position = HyperPosition::new(
@@ -220,14 +212,7 @@ fn path_to_exit(
                 }
             }
 
-            if explored.contains(&new_position) || new_position.level > 25 {
-                //Ignore anything we've seen before or anything below depth 25
-                //to avoid recursive loops (need to experiment with the value to
-                // ensure optimality - I originally set to 100 and the optimum was at max
-                // depth of 25, so I've set that to minimize running speed)
-                //
-                // There's probably a cleverer solution that spots and prunes
-                // recursive loops, but this has the benefit of simplicity!
+            if explored.contains(&new_position) {
                 continue;
             } else {
                 //Take appropriate action depending on the new node type
@@ -240,7 +225,7 @@ fn path_to_exit(
                             exit_position = Some(new_position);
                             search_state
                                 .insert(new_position, (current_position, current_path_length + 1));
-                            break;
+                            break 'outer;
                         } else {
                             continue; //Exit is a wall in recursive mode with level > 0
                         }
@@ -276,16 +261,6 @@ fn path_to_exit(
                 }
             }
         }
-
-        // loop_counter += 1;
-
-        // if loop_counter % 1000 == 0 {
-        //     println!("Loop counter: {}", loop_counter);
-        //     println!("Current position: {:?}", current_position);
-        //     println!("Current path length: {:?}", current_path_length);
-        //     println!("Explored set size: {:?}", explored.len());
-        //     println!("Frontier size: {:?}", frontier.len());
-        // }
     }
 
     match exit_position {
