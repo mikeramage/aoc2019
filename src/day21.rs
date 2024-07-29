@@ -27,20 +27,60 @@ pub fn day21() -> (usize, usize) {
     //     }
     // }
 
-    let program_input = "NOT A J
+    let mut ascii_input = "NOT A J
     NOT B T
     OR T J
     NOT C T
     OR T J
     AND D J
     WALK\n";
-    for c in program_input.bytes().map(|b| b as isize) {
-        program.add_input(c);
-    }
+
+    add_ascii_input(&mut program, ascii_input);
 
     result = program.run();
     assert_eq!(result, intcode::ProgramResult::Halted);
+
+    //Uncomment if springdroid fails
+    // print_failed_attempt(&program);
+
     let part1 = program.remove_last_output().unwrap();
 
-    (part1 as usize, 0)
+    program.initialize(&initial_state);
+    let mut result = program.run();
+    assert_eq!(intcode::ProgramResult::AwaitingInput, result);
+    ascii_input = "NOT A J
+    NOT B T
+    OR T J
+    NOT C T
+    OR T J
+    AND D J
+    NOT E T
+    NOT T T
+    OR H T
+    AND T J
+    RUN\n";
+    add_ascii_input(&mut program, ascii_input);
+
+    result = program.run();
+    assert_eq!(result, intcode::ProgramResult::Halted);
+
+    //Uncomment if springdroid fails
+    // print_failed_attempt(&program);
+
+    let part2 = program.remove_last_output().unwrap();
+
+    (part1 as usize, part2 as usize)
+}
+
+fn add_ascii_input(program: &mut intcode::Program, ascii_input: &str) {
+    for c in ascii_input.bytes().map(|b| b as isize) {
+        program.add_input(c);
+    }
+}
+
+#[allow(dead_code)]
+fn print_failed_attempt(program: &intcode::Program) {
+    for c in program.outputs().iter().map(|c| *c as u8 as char) {
+        print!("{}", c);
+    }
 }
