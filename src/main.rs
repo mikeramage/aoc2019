@@ -13,6 +13,7 @@ mod day18;
 mod day19;
 mod day2;
 mod day20;
+mod day21;
 mod day3;
 mod day4;
 mod day5;
@@ -28,7 +29,7 @@ mod utils;
 //But it's basically identical :-(
 //
 //I'm not copying anyone's solutions though!
-static DAYS: [fn() -> (usize, usize); 20] = [
+static DAYS: [fn() -> (usize, usize); 21] = [
     day1::day1,
     day2::day2,
     day3::day3,
@@ -49,6 +50,7 @@ static DAYS: [fn() -> (usize, usize); 20] = [
     day18::day18,
     day19::day19,
     day20::day20,
+    day21::day21,
 ];
 
 fn main() {
