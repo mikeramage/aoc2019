@@ -40,7 +40,8 @@ pub fn day7() -> (usize, usize) {
         .map(|phases| {
             phases.into_iter().fold(0, |acc, phase| {
                 program.initialize(&initial_state);
-                program.set_inputs(vec![acc, phase]);
+                program.add_input(phase);
+                program.add_input(acc);
                 program.run();
                 *program
                     .outputs()
@@ -200,7 +201,8 @@ mod tests {
         let mut output = 0;
         for phase in phases {
             program.initialize(&listing);
-            program.set_inputs(vec![output, *phase]);
+            program.add_input(*phase);
+            program.add_input(output);
             program.run();
             output = *program.outputs().last().unwrap();
         }

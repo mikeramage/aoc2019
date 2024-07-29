@@ -171,7 +171,7 @@ pub fn day17() -> (usize, usize) {
 }
 
 fn prepare_ascii_input(input: &str) -> Vec<isize> {
-    input.bytes().map(|b| b as isize).rev().collect()
+    input.bytes().map(|b| b as isize).collect()
 }
 
 fn set_inputs_and_run(
@@ -179,7 +179,9 @@ fn set_inputs_and_run(
     inputs: Vec<isize>,
     expected_result: intcode::ProgramResult,
 ) {
-    program.set_inputs(inputs);
+    for input in inputs {
+        program.add_input(input);
+    }
     let result = program.run();
     assert_eq!(expected_result, result);
 }

@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Clone)]
 pub struct Program {
     program: Vec<isize>,
     memory: HashMap<isize, isize>,
     instruction_pointer: usize,
-    inputs: Vec<isize>,
+    inputs: VecDeque<isize>,
     outputs: Vec<isize>,
     relative_base: isize,
 }
@@ -16,7 +16,7 @@ impl Program {
             program: program.to_owned(),
             memory: HashMap::new(),
             instruction_pointer: 0,
-            inputs: vec![],
+            inputs: VecDeque::new(),
             outputs: vec![],
             relative_base: 0,
         }
@@ -63,11 +63,7 @@ impl Program {
     }
 
     pub fn add_input(&mut self, input: isize) {
-        self.inputs.insert(0, input);
-    }
-
-    pub fn set_inputs(&mut self, inputs: Vec<isize>) {
-        self.inputs = inputs;
+        self.inputs.push_back(input);
     }
 
     pub fn output_deprecated(&self) -> isize {
@@ -108,7 +104,7 @@ impl Program {
         initial_values.clone_into(&mut self.program);
         self.memory = HashMap::new();
         self.instruction_pointer = 0;
-        self.inputs = vec![];
+        self.inputs = VecDeque::new();
         self.outputs = vec![];
         self.relative_base = 0;
     }
@@ -130,7 +126,7 @@ impl Instruction {
     //Instructions know how to build themselves from the program fragment starting at the beginning
     //of the instruction (the number of parameters to extract depends on the op code which is
     //encapsulated in the Instruction struct/impl).
-    pub fn new(program_fragment: &[isize], inputs: &mut Vec<isize>) -> Instruction {
+    pub fn new(program_fragment: &[isize], inputs: &mut VecDeque<isize>) -> Instruction {
         use OpCode::*;
         let op_code = OpCode::try_from(program_fragment[0]).unwrap();
         let parameters: Vec<Parameter> =
@@ -139,7 +135,7 @@ impl Instruction {
         let input = match op_code {
             Input => {
                 if !inputs.is_empty() {
-                    Some(inputs.pop().expect("Expected sufficient inputs!"))
+                    Some(inputs.pop_front().expect("Expected sufficient inputs!"))
                 } else {
                     None
                 }
