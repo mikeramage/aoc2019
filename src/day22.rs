@@ -224,7 +224,7 @@ fn modular_inverse(a: i128, n: i128) -> i128 {
     if old_t > 0 {
         old_t
     } else {
-        N + old_t
+        n + old_t
     }
 }
 
