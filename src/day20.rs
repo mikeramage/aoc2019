@@ -79,6 +79,7 @@ pub fn day20() -> (usize, usize) {
 
     visualize_solution(&path, &ascii_maze, max_row_index, max_col_index);
 
+    #[allow(unused_variables)]
     let (path_length_part2, path) = path_to_exit(
         &maze,
         &HyperPosition::new(entrance, 0),
@@ -88,7 +89,8 @@ pub fn day20() -> (usize, usize) {
     )
     .expect("Failed to solve maze :(");
 
-    visualize_solution(&path, &ascii_maze, max_row_index, max_col_index);
+    //Uncomment to visualize the hyperdimensional solution!
+    // visualize_solution(&path, &ascii_maze, max_row_index, max_col_index);
 
     (path_length_part1, path_length_part2)
     // (path_length_part1, 0)
