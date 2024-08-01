@@ -15,6 +15,7 @@ mod day2;
 mod day20;
 mod day21;
 mod day22;
+mod day23;
 mod day3;
 mod day4;
 mod day5;
@@ -30,7 +31,7 @@ mod utils;
 //But it's basically identical :-(
 //
 //I'm not copying anyone's solutions though!
-static DAYS: [fn() -> (usize, usize); 22] = [
+static DAYS: [fn() -> (usize, usize); 23] = [
     day1::day1,
     day2::day2,
     day3::day3,
@@ -53,6 +54,7 @@ static DAYS: [fn() -> (usize, usize); 22] = [
     day20::day20,
     day21::day21,
     day22::day22,
+    day23::day23,
 ];
 
 fn main() {
@@ -68,6 +70,7 @@ fn main() {
         max_day = min_day;
     }
 
+    let total_now = time::Instant::now();
     for day in min_day..max_day + 1 {
         println!("Running day {}", day);
         let now = time::Instant::now();
@@ -81,4 +84,10 @@ fn main() {
         println!("Part1 answer: {}", part1);
         println!("Part2 answer: {}", part2);
     }
+    let total_elapsed = total_now.elapsed();
+    println!(
+        "All solutions took {}.{:03} ms",
+        total_elapsed.as_micros() / 1000,
+        total_elapsed.as_micros() % 1000
+    );
 }

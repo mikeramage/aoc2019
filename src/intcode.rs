@@ -1,6 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Program {
     program: Vec<isize>,
     memory: HashMap<isize, isize>,
